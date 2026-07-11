@@ -11,6 +11,7 @@ import { coachAnalysis } from "../coach/analysis";
 export interface ChatMessage { role: "user" | "assistant"; content: string }
 
 const PROXY = import.meta.env.VITE_CLAUDE_PROXY_URL as string | undefined;
+const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export function buildSystemPrompt(p: StudentProfile, res: Results): string {
   const a = coachAnalysis(p, res);
@@ -34,7 +35,10 @@ export async function askCoach(system: string, messages: ChatMessage[]): Promise
   }
   const r = await fetch(PROXY, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(ANON ? { Authorization: `Bearer ${ANON}`, apikey: ANON } : {}),
+    },
     body: JSON.stringify({ system, messages }),
   });
   if (!r.ok) throw new Error(`Proxy ${r.status}`);
