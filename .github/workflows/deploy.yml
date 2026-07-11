@@ -19,6 +19,8 @@ jobs:
       - run: npm run build
         env:
           GITHUB_PAGES: "true"
+          VITE_CLAUDE_PROXY_URL: https://yeyeosbvgqbpcjdovtpz.supabase.co/functions/v1/coach-chat
+          VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlleWVvc2J2Z3FicGNqZG92dHB6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjM0MDksImV4cCI6MjA5OTI5OTQwOX0.gzlBprFLMDdwN_tkyhayBRGZjBdwYh_HgWm4ecuOs10
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
