@@ -7,6 +7,7 @@
    ============================================================ */
 import type { StudentProfile, Results } from "../core/bac-engine";
 import { coachAnalysis } from "../coach/analysis";
+import { supabase } from "./supabase";
 
 export interface ChatMessage { role: "user" | "assistant"; content: string }
 
@@ -33,11 +34,14 @@ export async function askCoach(system: string, messages: ChatMessage[]): Promise
   if (!PROXY) {
     return "Le chat IA n'est pas encore configuré : renseigne VITE_CLAUDE_PROXY_URL dans le fichier .env (voir README §Chat IA), puis redémarre l'application.";
   }
+  // Jeton de session si connecté (limite d'usage par compte), sinon clé publique (limite par IP)
+  const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+  const bearer = session?.access_token ?? ANON;
   const r = await fetch(PROXY, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(ANON ? { Authorization: `Bearer ${ANON}`, apikey: ANON } : {}),
+      ...(bearer ? { Authorization: `Bearer ${bearer}`, apikey: ANON ?? bearer } : {}),
     },
     body: JSON.stringify({ system, messages }),
   });

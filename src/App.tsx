@@ -19,6 +19,8 @@ import { QUIZ, FICHES, ANNALES } from "./data/contenu";
 import { store } from "./lib/storage";
 import type { AppState } from "./lib/storage";
 import { askCoach, buildSystemPrompt } from "./lib/claude";
+import { supabase, cloudLoad, cloudSave } from "./lib/supabase";
+import type { Session } from "@supabase/supabase-js";
 import type { ChatMessage } from "./lib/claude";
 
 
@@ -625,6 +627,51 @@ function Rectorat({ p, update }) {
   );
 }
 
+/* ---------- Compte : connexion et synchronisation ---------- */
+function AccountCard({ session }: { session: Session | null }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+  if (!supabase) return null;
+  if (session)
+    return (
+      <Card style={{ borderColor: P.menthe, borderWidth: 2 }}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Check size={16} color={P.menthe} />
+          <span className="font-bold text-sm flex-1">Connectée : {session.user.email}</span>
+          <Btn variant="ghost" onClick={() => { void supabase!.auth.signOut(); }}>Se déconnecter</Btn>
+        </div>
+        <p className="text-xs mt-2" style={{ color: P.gris }}>
+          Tes profils et notes sont sauvegardés dans le cloud et te suivent sur tous tes appareils.
+        </p>
+      </Card>
+    );
+  return (
+    <Card>
+      <h3 className="cb-display font-bold mb-1">Sauvegarde <span className="cb-hl">multi-appareils</span></h3>
+      <p className="text-xs mb-3" style={{ color: P.gris }}>
+        Sans compte, tes données restent uniquement sur cet appareil. Avec un compte (gratuit), tu les retrouves partout — aucun mot de passe, un simple lien envoyé par email.
+      </p>
+      {sent ? (
+        <p className="text-sm font-semibold p-3 rounded-xl" style={{ background: P.mentheSoft, color: P.menthe }}>
+          Lien envoyé à {email} — ouvre l'email sur cet appareil et appuie sur le lien pour te connecter.
+        </p>
+      ) : (
+        <div className="flex gap-2 flex-wrap">
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="ton.email@exemple.fr"
+            className="flex-1 min-w-40 px-3 py-2.5 rounded-xl text-sm outline-none" style={{ border: `1.5px solid ${P.ligne}` }} />
+          <Btn variant="fluo" disabled={!email.includes("@")} onClick={() => {
+            setErr("");
+            void supabase!.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin + window.location.pathname } })
+              .then(({ error }) => (error ? setErr("Envoi impossible : " + error.message) : setSent(true)));
+          }}>Recevoir mon lien</Btn>
+        </div>
+      )}
+      {err && <p className="text-xs mt-2 font-semibold" style={{ color: P.corail }}>{err}</p>}
+    </Card>
+  );
+}
+
 /* ---------- Profils ---------- */
 function Profiles({ state, setState, onAdd }) {
   return (
@@ -745,9 +792,38 @@ export default function App() {
   const [tab, setTab] = useState("dash");
   const [adding, setAdding] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [cloudReady, setCloudReady] = useState(false);
 
   useEffect(() => { store.load().then((s) => { setState(s); setLoaded(true); }); }, []);
-  useEffect(() => { if (loaded && state) store.save(state); }, [state, loaded]);
+
+  // Suivi de la session Supabase (connexion / déconnexion)
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  // À la connexion : le cloud est la source de vérité s'il contient des données,
+  // sinon on y pousse les données locales existantes.
+  useEffect(() => {
+    if (!session || !loaded) { setCloudReady(false); return; }
+    let cancelled = false;
+    void cloudLoad(session.user.id).then((cloud) => {
+      if (cancelled) return;
+      if (cloud && cloud.profiles?.length) setState(cloud);
+      setCloudReady(true);
+    });
+    return () => { cancelled = true; };
+  }, [session, loaded]);
+
+  // Sauvegarde : toujours en local, et dans le cloud une fois la session synchronisée
+  useEffect(() => {
+    if (!loaded || !state) return;
+    void store.save(state);
+    if (session && cloudReady) void cloudSave(session.user.id, state);
+  }, [state, loaded, session, cloudReady]);
 
   const active = state?.profiles?.find((p) => p.id === state.activeId);
   const res = useMemo(() => (active ? computeResults(active) : null), [active]);
@@ -804,7 +880,7 @@ export default function App() {
         {tab === "fiches" && <Fiches />}
         {tab === "stats" && <Stats p={active} res={res} />}
         {tab === "rectorat" && <Rectorat p={active} update={update} />}
-        {tab === "profils" && <Profiles state={state} setState={setState} onAdd={() => setAdding(true)} />}
+        {tab === "profils" && <div className="space-y-3"><AccountCard session={session} /><Profiles state={state} setState={setState} onAdd={() => setAdding(true)} /></div>}
       </main>
     </div>
   );
