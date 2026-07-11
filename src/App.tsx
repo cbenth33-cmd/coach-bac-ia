@@ -8,7 +8,7 @@ import {
   GraduationCap, LayoutDashboard, PenLine, Sparkles, CalendarDays,
   ListChecks, BookOpen, BarChart3, Building2, Plus, ChevronRight,
   ChevronLeft, Trash2, Check, Target, AlertTriangle, TrendingUp,
-  Clock, FileText, User, X, Award, Flame, MessageCircle, Send,
+  Clock, FileText, User, X, Award, Flame, MessageCircle, Send, FolderOpen,
 } from "lucide-react";
 
 import { computeResults, mention, OBJECTIFS } from "./core/bac-engine";
@@ -20,6 +20,7 @@ import { store } from "./lib/storage";
 import type { AppState } from "./lib/storage";
 import { askCoach, buildSystemPrompt } from "./lib/claude";
 import { supabase, cloudLoad, cloudSave } from "./lib/supabase";
+import { downloadIcs } from "./lib/ics";
 import type { Session } from "@supabase/supabase-js";
 import type { ChatMessage } from "./lib/claude";
 
@@ -543,6 +544,56 @@ function Fiches() {
   );
 }
 
+/* ---------- Annales par épreuve, session et centre ---------- */
+const SESSIONS_ANNALES = [2025, 2024, 2023, 2022];
+const CENTRES = ["Métropole", "Antilles-Guyane", "Amérique du Nord", "Asie"];
+
+function Annales({ p }: { p: StudentProfile }) {
+  const [centre, setCentre] = useState(p.academie === "Guyane" || p.academie === "Guadeloupe" || p.academie === "Martinique" ? "Antilles-Guyane" : "Métropole");
+  const search = (matiere: string, session: number) =>
+    window.open("https://www.google.com/search?q=" + encodeURIComponent(`sujet corrigé bac ${session} ${matiere} ${centre} pdf`), "_blank", "noopener");
+  return (
+    <div className="space-y-4 cb-fade">
+      <Card>
+        <h3 className="cb-display font-bold mb-1">S'entraîner sur les <span className="cb-hl">vrais sujets</span></h3>
+        <p className="text-xs mb-3" style={{ color: P.gris }}>
+          Choisis ton centre d'examen, puis une session : la recherche s'ouvre directement sur le sujet et son corrigé.
+          Les sujets tombés en Antilles-Guyane sont ceux qui te ressemblent le plus si tu passes en Guyane.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {CENTRES.map((c) => (
+            <button key={c} onClick={() => setCentre(c)} className="px-3 py-1.5 rounded-xl text-xs font-bold"
+              style={{ background: centre === c ? P.encre : P.papier, color: centre === c ? P.fluo : P.encreSoft, border: `1.5px solid ${centre === c ? P.encre : P.ligne}` }}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </Card>
+      {ANNALES.map((a, i) => (
+        <Card key={i} style={{ borderLeft: `4px solid ${P.fluo}` }}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="cb-display font-bold flex-1">{a.matiere}</span>
+            <Tag tone="encre">{a.duree}</Tag>
+          </div>
+          <p className="text-xs mt-1.5" style={{ color: P.encreSoft }}>{a.format}</p>
+          <p className="text-xs mt-1.5 font-semibold flex gap-1.5"><Sparkles size={13} className="shrink-0 mt-0.5" color={P.corail} />{a.conseil}</p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {SESSIONS_ANNALES.map((s) => (
+              <button key={s} onClick={() => search(a.matiere, s)} className="px-3 py-1.5 rounded-lg text-xs font-bold"
+                style={{ background: P.fluoSoft, border: `1px solid ${P.fluo}` }}>
+                Session {s} ↗
+              </button>
+            ))}
+          </div>
+        </Card>
+      ))}
+      <p className="text-xs text-center px-4" style={{ color: P.gris }}>
+        Les sujets officiels sont en libre accès. Méthode : un sujet complet par semaine, chronométré, corrigé le lendemain.
+      </p>
+    </div>
+  );
+}
+
 /* ---------- Stats ---------- */
 function Stats({ p, res }) {
   const data = res.rows.filter((r) => r.note != null).map((r) => ({ name: r.nom.length > 14 ? r.nom.slice(0, 13) + "…" : r.nom, note: r.note, coef: r.coef }));
@@ -596,6 +647,10 @@ function Rectorat({ p, update }) {
       <Card style={{ background: P.encre, border: "none" }}>
         <div className="flex items-center gap-2 mb-1"><Building2 size={18} color={P.fluo} /><span className="cb-display font-bold text-white">Mode Rectorat — session {p.session}</span></div>
         <p className="text-sm text-white/80">Académie de {p.academie} · candidat {p.statut === "scolaire" ? "scolaire" : "individuel"} · <b style={{ color: P.fluo }}>{done}/{items.length}</b> démarches validées</p>
+        <button onClick={() => downloadIcs(p)} className="mt-3 px-3 py-2 rounded-xl text-sm font-bold" style={{ background: P.fluo, color: P.encre }}>
+          📅 Ajouter les échéances à mon calendrier
+        </button>
+        <p className="text-[11px] mt-1.5 text-white/60">Chaque échéance arrive dans ton téléphone avec un rappel 7 jours avant.</p>
       </Card>
       {cats.map((cat) => (
         <Card key={cat}>
@@ -782,6 +837,7 @@ const TABS = [
   { id: "planning", label: "Planning", icon: CalendarDays },
   { id: "quiz", label: "Quiz", icon: ListChecks },
   { id: "fiches", label: "Fiches", icon: BookOpen },
+  { id: "annales", label: "Annales", icon: FolderOpen },
   { id: "stats", label: "Stats", icon: BarChart3 },
   { id: "rectorat", label: "Rectorat", icon: Building2 },
   { id: "profils", label: "Profils", icon: User },
@@ -878,6 +934,7 @@ export default function App() {
         {tab === "planning" && <Planning p={active} res={res} />}
         {tab === "quiz" && <Quiz p={active} update={update} />}
         {tab === "fiches" && <Fiches />}
+        {tab === "annales" && <Annales p={active} />}
         {tab === "stats" && <Stats p={active} res={res} />}
         {tab === "rectorat" && <Rectorat p={active} update={update} />}
         {tab === "profils" && <div className="space-y-3"><AccountCard session={session} /><Profiles state={state} setState={setState} onAdd={() => setAdding(true)} /></div>}
