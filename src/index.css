@@ -346,9 +346,34 @@ body {
   }
 
   /* ---------- navigation ---------- */
-  .cb-sidebar {
-    background: var(--surface);
-    border-right: 1px solid var(--border);
+  .cb-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    padding-top: env(safe-area-inset-top);
+  }
+  .cb-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 0.85rem;
+    color: var(--text);
+    background: transparent;
+    border: 1.5px solid transparent;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.12s ease, border-color 0.15s ease;
+  }
+  .cb-iconbtn:hover {
+    background: var(--surface-2);
+  }
+  .cb-iconbtn:active {
+    transform: scale(0.92);
   }
   .cb-navlink {
     display: flex;
@@ -381,92 +406,128 @@ body {
     margin: 1.1rem 0 0.35rem;
   }
 
-  /* Barre inférieure mobile */
-  .cb-bottomnav {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 40;
-    display: flex;
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border-top: 1px solid var(--border);
-    padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
-  }
-  .cb-bottomnav button {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: 0.4rem 0.2rem;
-    border-radius: 0.75rem;
-    font-size: 0.62rem;
-    font-weight: 700;
-    color: var(--muted);
-    transition: color 0.15s ease, background 0.15s ease;
-  }
-  .cb-bottomnav button[aria-current="page"] {
-    color: var(--text);
-  }
-  .cb-bottomnav button[aria-current="page"] .cb-bn-ico {
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-  .cb-bn-ico {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 26px;
-    border-radius: 999px;
-    transition: background 0.15s ease, color 0.15s ease;
-  }
-
-  /* Feuille « Plus » (mobile) */
-  .cb-sheet-backdrop {
+  /* Menu latéral (drawer) */
+  .cb-drawer-backdrop {
     position: fixed;
     inset: 0;
-    z-index: 45;
+    z-index: 55;
     background: rgba(10, 13, 28, 0.45);
     animation: cbfade 0.2s ease both;
   }
-  .cb-sheet {
+  .cb-drawer {
     position: fixed;
-    left: 0;
-    right: 0;
+    top: 0;
     bottom: 0;
-    z-index: 50;
+    left: 0;
+    z-index: 60;
+    width: min(320px, 86vw);
+    display: flex;
+    flex-direction: column;
     background: var(--surface);
-    border-top: 1px solid var(--border);
-    border-radius: 1.5rem 1.5rem 0 0;
-    padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom));
+    border-right: 1px solid var(--border);
     box-shadow: var(--shadow-lift);
-    animation: cbup 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+    padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1rem + env(safe-area-inset-bottom));
+    animation: cbdrawer 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
-  .cb-sheet-item {
+
+  /* Menu Paramètres (⚙️) */
+  .cb-menu {
+    position: fixed;
+    top: calc(60px + env(safe-area-inset-top));
+    right: 0.9rem;
+    z-index: 60;
+    min-width: 240px;
+    padding: 0.4rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1.1rem;
+    box-shadow: var(--shadow-lift);
+    animation: cbpop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: top right;
+  }
+  .cb-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.8rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: left;
+    transition: background 0.15s ease;
+  }
+  .cb-menu-item:hover {
+    background: var(--surface-2);
+  }
+
+  /* Raccourcis du tableau de bord */
+  .cb-quick {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.9rem 0.4rem;
+    border-radius: 1.1rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text);
+    transition: transform 0.12s ease, background 0.15s ease;
+  }
+  .cb-quick:hover {
+    background: var(--surface-2);
+  }
+  .cb-quick:active {
+    transform: scale(0.94);
+  }
+  .cb-quick-ico {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 1rem;
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+  :root[data-theme="dark"] .cb-quick-ico {
+    color: var(--accent-strong);
+  }
+
+  /* Badges */
+  .cb-badge {
+    flex: 0 0 auto;
+    width: 116px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.45rem;
-    padding: 0.85rem 0.25rem;
-    border-radius: 1rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--text-2);
-    border: 1.5px solid var(--border);
-    background: var(--surface);
-    transition: background 0.15s ease, border-color 0.15s ease;
-  }
-  .cb-sheet-item:hover {
+    padding: 0.9rem 0.5rem;
+    border-radius: 1.1rem;
+    border: 1px solid var(--border);
     background: var(--surface-2);
+    text-align: center;
   }
-  .cb-sheet-item[aria-current="page"] {
-    border-color: var(--accent-strong);
-    background: var(--accent-soft);
-    color: var(--text);
+  .cb-badge.is-locked {
+    opacity: 0.55;
+  }
+  .cb-badge.is-locked .cb-badge-ico {
+    background: var(--surface);
+    color: var(--muted);
+  }
+  .cb-badge-ico {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
   }
 
   /* ---------- divers ---------- */
@@ -530,6 +591,14 @@ body {
     opacity: 1;
   }
 }
+@keyframes cbdrawer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
 @keyframes cbpulse {
   0%,
   100% {
@@ -545,14 +614,17 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cb-fade,
   .cb-pop,
-  .cb-sheet,
-  .cb-sheet-backdrop,
+  .cb-drawer,
+  .cb-drawer-backdrop,
+  .cb-menu,
   .cb-pulse {
     animation: none;
   }
   .cb-btn,
   .cb-bar > span,
-  .cb-option {
+  .cb-option,
+  .cb-quick,
+  .cb-iconbtn {
     transition: none;
   }
 }

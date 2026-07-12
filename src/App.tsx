@@ -9,7 +9,7 @@ import {
   ListChecks, BookOpen, BarChart3, Building2, Plus, ChevronRight,
   ChevronLeft, Trash2, Check, Target, AlertTriangle, TrendingUp,
   Clock, FileText, User, X, Award, Flame, MessageCircle, Send, FolderOpen,
-  Sun, Moon, MoreHorizontal, CalendarPlus, ExternalLink,
+  Sun, Moon, CalendarPlus, ExternalLink, Menu, Settings, Lock, Download,
 } from "lucide-react";
 
 import { computeResults, mention, OBJECTIFS } from "./core/bac-engine";
@@ -46,6 +46,34 @@ const CHART: Record<Theme, { grid: string; axis: string; ok: string; bar: string
   light: { grid: "#E3E6F2", axis: "#5F6890", ok: "#0E8A57", bar: "#FFD449", ref: "#CF3E2C", label: "#171F3D", tipBg: "#FFFFFF", tipBorder: "#E3E6F2", tipText: "#171F3D" },
   dark: { grid: "#2A3156", axis: "#929AC0", ok: "#45D695", bar: "#FFD44D", ref: "#FF8B77", label: "#EDF0FC", tipBg: "#1F2643", tipBorder: "#2A3156", tipText: "#EDF0FC" },
 };
+
+/* ---------- données dérivées pour le tableau de bord ----------
+   Tout est calculé à partir du profil existant (quizHistory, notes,
+   rectorat) : aucune donnée nouvelle n'est stockée. */
+function computeStreak(hist: { date: number }[] = []): number {
+  const days = new Set(hist.map((h) => new Date(h.date).toDateString()));
+  let streak = 0;
+  const d = new Date();
+  if (!days.has(d.toDateString())) d.setDate(d.getDate() - 1);
+  while (days.has(d.toDateString())) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+
+function buildBadges(p: StudentProfile, res, streak: number) {
+  const notes = res.rows.filter((r) => r.note != null).length;
+  const quizzes = p.quizHistory || [];
+  const rect = rectoratItems(p);
+  const rectDone = rect.filter((i) => p.rectorat?.[i.id]).length;
+  return [
+    { id: "note1", icon: PenLine, label: "Première note", desc: "Saisis une note", on: notes >= 1 },
+    { id: "quiz1", icon: ListChecks, label: "Premier quiz", desc: "Joue un quiz", on: quizzes.length >= 1 },
+    { id: "streak3", icon: Flame, label: "3 jours de suite", desc: "Révise 3 jours d'affilée", on: streak >= 3 },
+    { id: "sansfaute", icon: Sparkles, label: "Sans-faute", desc: "100 % à un quiz", on: quizzes.some((q) => q.score === q.total) },
+    { id: "dossier", icon: Target, label: "Dossier complet", desc: "Toutes les notes saisies", on: notes === res.rows.length },
+    { id: "objectif", icon: Award, label: "Objectif atteint", desc: `Moyenne ≥ ${res.target}/20`, on: res.moyenne != null && res.moyenne >= res.target },
+    { id: "admin", icon: Building2, label: "Démarches à jour", desc: "Rectorat 100 % validé", on: rect.length > 0 && rectDone === rect.length },
+  ];
+}
 
 /* ================================================================
    UI — composants
@@ -195,18 +223,42 @@ function Onboarding({ onDone, onCancel, canCancel }) {
 }
 
 /* ---------- Dashboard ---------- */
+const SEUILS_MENTIONS = [10, 12, 14, 16, 18];
+
 function Dashboard({ p, res, go }) {
   const m = res.mention;
   const prog = Math.round((res.coefDone / res.coefTotal) * 100);
+  const streak = computeStreak(p.quizHistory);
+  const badges = buildBadges(p, res, streak);
+  const earned = badges.filter((b) => b.on).length;
+  const lastQuiz = (p.quizHistory || []).slice(-1)[0];
+  const nextSeuil = res.moyenne != null ? SEUILS_MENTIONS.find((s) => res.moyenne < s) : null;
+  const nextMention = nextSeuil ? mention(nextSeuil) : null;
+  const ptsNext = nextSeuil != null && res.totalProjete != null
+    ? Math.max(0, Math.ceil(nextSeuil * res.coefTotal - res.totalProjete)) : null;
+  const parMatiere = res.rows.filter((r) => r.note != null).sort((a, b) => b.coef - a.coef).slice(0, 6);
+  const shortcuts = [
+    { id: "quiz", label: "Quiz", icon: ListChecks },
+    { id: "fiches", label: "Fiches", icon: BookOpen },
+    { id: "annales", label: "Annales", icon: FolderOpen },
+    { id: "chat", label: "Chat coach", icon: MessageCircle },
+  ];
   const tiles = [
+    { icon: Flame, color: "var(--danger)", soft: "var(--danger-soft)", value: streak, suffix: streak > 1 ? " jours" : " jour", label: "Série de révision" },
     { icon: Target, color: "var(--success)", soft: "var(--success-soft)", value: `${res.target}/20`, label: `Objectif (${mention(res.target)?.short})` },
-    { icon: Flame, color: "var(--danger)", soft: "var(--danger-soft)", value: res.ptsManquants, label: "Points à aller chercher" },
     { icon: Award, color: "var(--on-accent)", soft: "var(--accent-soft)", value: res.totalProjete ?? "—", suffix: "/2000", label: "Total projeté" },
     { icon: Clock, color: "var(--text-2)", soft: "var(--surface-2)", value: `${p.heuresSemaine} h`, label: "Révisions / semaine" },
   ];
   return (
-    <div className="space-y-4 cb-fade">
+    <div className="space-y-5 cb-fade">
+      {/* Progression générale */}
       <section className="cb-hero" aria-label="Moyenne générale projetée">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="text-sm font-bold" style={{ color: "var(--hero-muted)" }}>Salut {p.prenom} 👋</div>
+          <div className="cb-tag" style={{ background: "var(--track)", color: "#fff" }}>
+            <Flame size={13} color="var(--accent)" aria-hidden /> {streak > 0 ? `${streak} j de suite` : "Lance ta série !"}
+          </div>
+        </div>
         <div className="flex flex-wrap items-end gap-6">
           <div>
             <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--accent)" }}>Moyenne générale projetée</div>
@@ -221,6 +273,22 @@ function Dashboard({ p, res, go }) {
           </div>
         </div>
       </section>
+
+      {/* Raccourcis vers les exercices */}
+      <section aria-label="Raccourcis">
+        <div className="grid grid-cols-4 gap-2.5">
+          {shortcuts.map((s) => {
+            const Icon = s.icon;
+            return (
+              <button key={s.id} onClick={() => go(s.id)} className="cb-quick">
+                <span className="cb-quick-ico"><Icon size={20} aria-hidden /></span>{s.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Indicateurs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {tiles.map((t) => {
           const Icon = t.icon;
@@ -235,6 +303,83 @@ function Dashboard({ p, res, go }) {
           );
         })}
       </div>
+
+      {/* Prochain objectif + dernière activité */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card>
+          <h3 className="cb-display font-bold mb-2 flex items-center gap-2"><Target size={16} color="var(--success)" aria-hidden /> Prochain objectif</h3>
+          {res.moyenne == null
+            ? <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>Saisis tes premières notes : ton prochain palier de mention s'affichera ici.</p>
+            : nextMention
+              ? (<>
+                <p className="text-sm leading-relaxed">Prochain palier : <b>{nextMention.label}</b> (≥ {nextSeuil}/20).</p>
+                {ptsNext != null && <p className="text-sm mt-1" style={{ color: "var(--text-2)" }}>Il te manque <b style={{ color: "var(--danger)" }}>{ptsNext} points</b> sur ton total projeté — vise d'abord tes matières à coefficient 16.</p>}
+                <div className="mt-3"><Progress value={Math.min(100, (res.moyenne / (nextSeuil as number)) * 100)} color="var(--success)" /></div>
+              </>)
+              : <p className="text-sm font-medium" style={{ color: "var(--success)" }}>Palier maximal atteint — félicitations, maintiens le cap jusqu'à l'examen !</p>}
+        </Card>
+        <Card>
+          <h3 className="cb-display font-bold mb-2 flex items-center gap-2"><ListChecks size={16} aria-hidden /> Dernière session</h3>
+          {lastQuiz
+            ? (<>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-sm flex-1">{lastQuiz.subj}</span>
+                <Tag tone={lastQuiz.score / lastQuiz.total >= 0.6 ? "menthe" : "corail"}>{lastQuiz.score}/{lastQuiz.total}</Tag>
+              </div>
+              <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>
+                Quiz du {new Date(lastQuiz.date).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}
+              </p>
+              <Btn variant="fluo" className="mt-3" onClick={() => go("quiz")}>Rejouer un quiz</Btn>
+            </>)
+            : (<>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>Aucun quiz joué pour l'instant — 5 minutes suffisent pour lancer ta série.</p>
+              <Btn variant="fluo" className="mt-3" onClick={() => go("quiz")}>Lancer mon premier quiz</Btn>
+            </>)}
+        </Card>
+      </div>
+
+      {/* Progression par matière */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="cb-display font-bold">Progression par matière</h3>
+          <button onClick={() => go("stats")} className="text-xs font-bold rounded-md px-1" style={{ color: "var(--text)" }}>Tout voir →</button>
+        </div>
+        {parMatiere.length === 0
+          ? <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>Saisis tes notes dans l'onglet <b>Notes</b> pour suivre chaque matière ici.</p>
+          : (
+            <div className="space-y-2.5">
+              {parMatiere.map((r) => (
+                <div key={r.id} className="flex items-center gap-3">
+                  <div className="text-sm font-semibold flex-1 truncate">{r.nom}</div>
+                  <div className="flex-1"><Progress value={(r.note / 20) * 100} color={r.note >= res.target ? "var(--success)" : "var(--accent)"} /></div>
+                  <div className="text-sm font-bold w-12 text-right">{r.note}/20</div>
+                </div>
+              ))}
+            </div>
+          )}
+      </Card>
+
+      {/* Badges */}
+      <Card>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="cb-display font-bold">Badges</h3>
+          <Tag tone="fluo">{earned}/{badges.length}</Tag>
+        </div>
+        <div className="flex gap-2.5 overflow-x-auto cb-scroll -mx-1 px-1 pb-1" role="list" aria-label="Badges">
+          {badges.map((b) => {
+            const Icon = b.on ? b.icon : Lock;
+            return (
+              <div key={b.id} role="listitem" className={`cb-badge ${b.on ? "" : "is-locked"}`}>
+                <span className="cb-badge-ico"><Icon size={18} aria-hidden /></span>
+                <span className="text-xs font-bold leading-tight">{b.label}</span>
+                <span className="text-[10px] leading-tight" style={{ color: "var(--muted)" }}>{b.desc}</span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Prochaines actions + Rectorat */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <div className="flex items-center justify-between mb-3">
@@ -849,16 +994,13 @@ const TABS = [
   { id: "profils", label: "Profils", icon: User },
 ];
 
-/* Sidebar (ordinateur) : rubriques groupées */
+/* Menu latéral : rubriques groupées */
 const NAV_GROUPS = [
   { label: "Pilotage", ids: ["dash", "notes", "stats"] },
   { label: "Coaching", ids: ["coach", "chat", "planning"] },
   { label: "Entraînement", ids: ["quiz", "fiches", "annales"] },
   { label: "Organisation", ids: ["rectorat", "profils"] },
 ];
-
-/* Navigation mobile : 4 accès directs + menu « Plus » */
-const MOBILE_PRIMARY = ["dash", "notes", "coach", "chat"];
 
 /* Titre et sous-titre affichés en tête de chaque page */
 const PAGE_META: Record<string, [string, string]> = {
@@ -877,16 +1019,6 @@ const PAGE_META: Record<string, [string, string]> = {
 
 const tabById = (id: string) => TABS.find((t) => t.id === id)!;
 
-function ThemeToggle({ theme, onToggle, className = "" }: { theme: Theme; onToggle: () => void; className?: string }) {
-  const dark = theme === "dark";
-  return (
-    <button onClick={onToggle} className={`cb-btn cb-btn-ghost ${className}`} style={{ width: 40, height: 40, padding: 0 }}
-      aria-label={dark ? "Passer en mode clair" : "Passer en mode sombre"} title={dark ? "Mode clair" : "Mode sombre"}>
-      {dark ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
-    </button>
-  );
-}
-
 export default function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [tab, setTab] = useState("dash");
@@ -895,7 +1027,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [cloudReady, setCloudReady] = useState(false);
   const [theme, setTheme] = useState<Theme>(getTheme);
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const toggleTheme = () => setTheme((t) => { const next = t === "dark" ? "light" : "dark"; applyTheme(next); return next; });
 
@@ -929,13 +1062,13 @@ export default function App() {
     if (session && cloudReady) void cloudSave(session.user.id, state);
   }, [state, loaded, session, cloudReady]);
 
-  // Fermeture du menu « Plus » au clavier (Échap)
+  // Fermeture du menu latéral et des paramètres au clavier (Échap)
   useEffect(() => {
-    if (!moreOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    if (!menuOpen && !settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setMenuOpen(false); setSettingsOpen(false); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [moreOpen]);
+  }, [menuOpen, settingsOpen]);
 
   const active = state?.profiles?.find((p) => p.id === state.activeId);
   const res = useMemo(() => (active ? computeResults(active) : null), [active]);
@@ -957,62 +1090,28 @@ export default function App() {
     return null;
   }
 
-  const goTab = (id: string) => { setTab(id); setMoreOpen(false); };
+  const goTab = (id: string) => { setTab(id); setMenuOpen(false); setSettingsOpen(false); window.scrollTo({ top: 0 }); };
   const [title, subtitle] = PAGE_META[tab] || ["", ""];
-  const moreTabs = TABS.filter((t) => !MOBILE_PRIMARY.includes(t.id));
-  const moreActive = moreTabs.some((t) => t.id === tab);
 
   return (
     <div className="min-h-screen">
       <a href="#contenu" className="cb-skip">Aller au contenu</a>
 
-      {/* ---------- Sidebar (ordinateur) ---------- */}
-      <aside className="cb-sidebar hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 p-4 z-30" aria-label="Navigation principale">
-        <div className="flex items-center gap-3 px-2 py-2 mb-2">
-          <Logo size={40} />
-          <div className="min-w-0">
-            <div className="cb-display font-extrabold leading-none">Coach Bac IA</div>
-            <div className="text-[11px] truncate mt-1" style={{ color: "var(--muted)" }}>Bac {active.session} · {active.academie}</div>
-          </div>
-        </div>
-        <nav className="flex-1 overflow-y-auto cb-scroll">
-          {NAV_GROUPS.map((gr) => (
-            <div key={gr.label}>
-              <div className="cb-navgroup">{gr.label}</div>
-              {gr.ids.map((id) => {
-                const t = tabById(id); const Icon = t.icon;
-                return (
-                  <button key={id} onClick={() => goTab(id)} className="cb-navlink" aria-current={tab === id ? "page" : undefined}>
-                    <Icon size={16} aria-hidden />{t.label}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-        <div className="pt-3 mt-2 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)" }}>
-          <button onClick={() => goTab("profils")} className="flex items-center gap-2.5 flex-1 min-w-0 p-1.5 rounded-xl cb-navlink" style={{ padding: "0.4rem 0.5rem" }}>
-            <span className="w-9 h-9 rounded-xl flex items-center justify-center cb-display font-extrabold shrink-0" style={{ background: "var(--accent)", color: "var(--on-accent)" }}>{active.prenom[0]?.toUpperCase()}</span>
-            <span className="min-w-0 text-left">
-              <span className="block font-bold text-sm truncate" style={{ color: "var(--text)" }}>{active.prenom}</span>
-              <span className="block text-[11px] truncate" style={{ color: "var(--muted)" }}>{session ? "Synchronisé" : "Sur cet appareil"}</span>
-            </span>
+      {/* ---------- Barre supérieure ---------- */}
+      <header className="cb-topbar">
+        <div className="max-w-3xl mx-auto flex items-center gap-1.5 px-3 py-2">
+          <button className="cb-iconbtn" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu" aria-expanded={menuOpen} aria-haspopup="dialog">
+            <Menu size={21} aria-hidden />
           </button>
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
-        </div>
-      </aside>
-
-      {/* ---------- Header (mobile / tablette) ---------- */}
-      <header className="lg:hidden sticky top-0 z-30 px-4 py-3" style={{ background: "color-mix(in srgb, var(--bg) 88%, transparent)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid var(--border)" }}>
-        <div className="max-w-3xl mx-auto flex items-center gap-3">
-          <Logo size={38} />
-          <div className="min-w-0">
-            <div className="cb-display font-extrabold leading-none">Coach Bac IA</div>
-            <div className="text-[11px] truncate mt-1" style={{ color: "var(--muted)" }}>{active.prenom} · Bac {active.session} · {active.academie}</div>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
-            <button onClick={() => goTab("profils")} className="w-10 h-10 rounded-xl cb-display font-extrabold shrink-0"
+          <button onClick={() => goTab("dash")} className="flex items-center gap-2.5 min-w-0 rounded-xl px-1 py-1" aria-label="Accueil — Coach Bac IA">
+            <Logo size={34} />
+            <span className="cb-display font-extrabold leading-none truncate">Coach Bac IA</span>
+          </button>
+          <div className="ml-auto flex items-center gap-1.5">
+            <button className="cb-iconbtn" onClick={() => setSettingsOpen((o) => !o)} aria-label="Paramètres" aria-expanded={settingsOpen} aria-haspopup="menu">
+              <Settings size={20} aria-hidden />
+            </button>
+            <button onClick={() => goTab("profils")} className="w-10 h-10 rounded-xl cb-display font-extrabold shrink-0 transition-transform active:scale-90"
               style={{ background: "var(--accent)", color: "var(--on-accent)" }} aria-label="Profils">
               {active.prenom[0]?.toUpperCase()}
             </button>
@@ -1021,8 +1120,8 @@ export default function App() {
       </header>
 
       {/* ---------- Contenu ---------- */}
-      <main id="contenu" className="lg:pl-64">
-        <div className="max-w-3xl mx-auto px-4 lg:px-8 pt-5 lg:pt-8 pb-28 lg:pb-12">
+      <main id="contenu">
+        <div className="max-w-3xl mx-auto px-4 pt-5 pb-16">
           <div className="mb-5">
             <h1 className="cb-display text-2xl font-extrabold">{title}</h1>
             <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{subtitle}</p>
@@ -1041,47 +1140,75 @@ export default function App() {
         </div>
       </main>
 
-      {/* ---------- Menu « Plus » (mobile) ---------- */}
-      {moreOpen && (
+      {/* ---------- Menu latéral (hamburger) ---------- */}
+      {menuOpen && (
         <>
-          <div className="cb-sheet-backdrop lg:hidden" onClick={() => setMoreOpen(false)} aria-hidden />
-          <div className="cb-sheet lg:hidden" role="dialog" aria-modal="true" aria-label="Toutes les rubriques">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <span className="cb-display font-bold">Toutes les rubriques</span>
-              <button onClick={() => setMoreOpen(false)} className="p-2 rounded-lg" aria-label="Fermer le menu">
-                <X size={18} color="var(--muted)" />
+          <div className="cb-drawer-backdrop" onClick={() => setMenuOpen(false)} aria-hidden />
+          <div className="cb-drawer" role="dialog" aria-modal="true" aria-label="Menu principal">
+            <div className="flex items-center gap-3 px-1 mb-1">
+              <Logo size={38} />
+              <div className="min-w-0">
+                <div className="cb-display font-extrabold leading-none">Coach Bac IA</div>
+                <div className="text-[11px] truncate mt-1" style={{ color: "var(--muted)" }}>Bac {active.session} · {active.academie}</div>
+              </div>
+              <button onClick={() => setMenuOpen(false)} className="cb-iconbtn ml-auto" aria-label="Fermer le menu">
+                <X size={19} aria-hidden />
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {moreTabs.map((t) => {
-                const Icon = t.icon;
-                return (
-                  <button key={t.id} onClick={() => goTab(t.id)} className="cb-sheet-item" aria-current={tab === t.id ? "page" : undefined}>
-                    <Icon size={19} aria-hidden />{t.label}
-                  </button>
-                );
-              })}
+            <button onClick={() => goTab("profils")} className="flex items-center gap-2.5 w-full p-2 mt-2 rounded-xl cb-row text-left">
+              <span className="w-9 h-9 rounded-xl flex items-center justify-center cb-display font-extrabold shrink-0" style={{ background: "var(--accent)", color: "var(--on-accent)" }}>{active.prenom[0]?.toUpperCase()}</span>
+              <span className="min-w-0">
+                <span className="block font-bold text-sm truncate">{active.prenom}</span>
+                <span className="block text-[11px] truncate" style={{ color: "var(--muted)" }}>{session ? "Synchronisé dans le cloud" : "Données sur cet appareil"}</span>
+              </span>
+            </button>
+            <nav className="flex-1 overflow-y-auto cb-scroll mt-1" aria-label="Rubriques">
+              {NAV_GROUPS.map((gr) => (
+                <div key={gr.label}>
+                  <div className="cb-navgroup">{gr.label}</div>
+                  {gr.ids.map((id) => {
+                    const t = tabById(id); const Icon = t.icon;
+                    return (
+                      <button key={id} onClick={() => goTab(id)} className="cb-navlink" aria-current={tab === id ? "page" : undefined}>
+                        <Icon size={16} aria-hidden />{t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+            <div className="pt-3 mt-2 flex items-center justify-between gap-2" style={{ borderTop: "1px solid var(--border)" }}>
+              <button onClick={toggleTheme} className="cb-navlink" style={{ width: "auto", flex: 1 }}>
+                {theme === "dark" ? <Sun size={16} aria-hidden /> : <Moon size={16} aria-hidden />}
+                Mode {theme === "dark" ? "clair" : "sombre"}
+              </button>
+              <span className="text-[11px] font-semibold px-2" style={{ color: "var(--muted)" }}>v1.5</span>
             </div>
           </div>
         </>
       )}
 
-      {/* ---------- Barre de navigation (mobile) ---------- */}
-      <nav className="cb-bottomnav lg:hidden" aria-label="Navigation principale">
-        {MOBILE_PRIMARY.map((id) => {
-          const t = tabById(id); const Icon = t.icon;
-          const label = id === "dash" ? "Accueil" : id === "coach" ? "Coach" : id === "chat" ? "Chat" : t.label;
-          return (
-            <button key={id} onClick={() => goTab(id)} aria-current={tab === id && !moreOpen ? "page" : undefined}>
-              <span className="cb-bn-ico"><Icon size={18} aria-hidden /></span>{label}
+      {/* ---------- Menu Paramètres (⚙️) ---------- */}
+      {settingsOpen && (
+        <>
+          <div className="cb-drawer-backdrop" style={{ background: "transparent", animation: "none" }} onClick={() => setSettingsOpen(false)} aria-hidden />
+          <div className="cb-menu" role="menu" aria-label="Paramètres">
+            <button className="cb-menu-item" role="menuitem" onClick={toggleTheme}>
+              {theme === "dark" ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
+              Mode {theme === "dark" ? "clair" : "sombre"}
             </button>
-          );
-        })}
-        <button onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen}
-          aria-current={moreActive && !moreOpen ? "page" : undefined}>
-          <span className="cb-bn-ico"><MoreHorizontal size={18} aria-hidden /></span>Plus
-        </button>
-      </nav>
+            <button className="cb-menu-item" role="menuitem" onClick={() => goTab("profils")}>
+              <User size={17} aria-hidden /> Profils &amp; compte
+            </button>
+            <button className="cb-menu-item" role="menuitem" onClick={() => { downloadIcs(active); setSettingsOpen(false); }}>
+              <Download size={17} aria-hidden /> Exporter les échéances
+            </button>
+            <div className="px-3 pt-2 pb-1 text-[11px] font-semibold" style={{ color: "var(--muted)", borderTop: "1px solid var(--border)", marginTop: "0.3rem" }}>
+              Coach Bac IA · v1.5 · {active.academie}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
