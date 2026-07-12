@@ -9,6 +9,7 @@ import {
   ListChecks, BookOpen, BarChart3, Building2, Plus, ChevronRight,
   ChevronLeft, Trash2, Check, Target, AlertTriangle, TrendingUp,
   Clock, FileText, User, X, Award, Flame, MessageCircle, Send, FolderOpen,
+  Sun, Moon, MoreHorizontal, CalendarPlus, ExternalLink,
 } from "lucide-react";
 
 import { computeResults, mention, OBJECTIFS } from "./core/bac-engine";
@@ -26,80 +27,67 @@ import type { ChatMessage } from "./lib/claude";
 
 
 /* ================================================================
-   COACH BAC IA — v1.0
+   COACH BAC IA — v2 (refonte design)
    Architecture modulaire : core (moteur bac) / coach / data / ui
-   Prêt à migrer vers Vite + TS + Supabase (voir README)
+   Le design system (tokens clair/sombre) vit dans index.css.
    ================================================================ */
 
-/* ---------- design tokens ---------- */
-const P = {
-  encre: "#232B4A",       // bleu encre — texte & fonds forts
-  encreSoft: "#3A4468",
-  papier: "#F6F5F0",      // fond papier copie
-  blanc: "#FFFFFF",
-  fluo: "#FFE14D",        // surligneur — signature visuelle
-  fluoSoft: "#FFF3B8",
-  menthe: "#1F9D6C",      // validé / mention
-  mentheSoft: "#E3F4EC",
-  corail: "#E85D4A",      // urgent / sous l'objectif
-  corailSoft: "#FBE7E3",
-  ligne: "#E4E2D9",
-  gris: "#8A8FA3",
+/* ---------- thème clair / sombre ---------- */
+type Theme = "light" | "dark";
+const getTheme = (): Theme =>
+  typeof document !== "undefined" && document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+const applyTheme = (t: Theme) => {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("coachbac_theme", t); } catch { /* stockage indisponible */ }
 };
 
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Public+Sans:wght@400;500;600;700&display=swap');
-.cb-root { font-family:'Public Sans',system-ui,sans-serif; color:${P.encre}; }
-.cb-display { font-family:'Archivo',sans-serif; letter-spacing:-0.02em; }
-.cb-hl { position:relative; display:inline-block; }
-.cb-hl::before { content:''; position:absolute; left:-4px; right:-4px; top:52%; height:0.62em;
-  background:${P.fluo}; transform:translateY(-38%) skewX(-8deg) rotate(-0.6deg); z-index:-1; border-radius:2px; }
-.cb-fade { animation:cbfade .35s ease both; }
-@keyframes cbfade { from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
-@media (prefers-reduced-motion: reduce){ .cb-fade{animation:none;} }
-.cb-scroll::-webkit-scrollbar{height:0;width:0}
-input.cb-note::-webkit-outer-spin-button, input.cb-note::-webkit-inner-spin-button{ -webkit-appearance:none; }
-`;
+/* Couleurs des graphiques (le SVG recharts ne lit pas les variables CSS en attribut) */
+const CHART: Record<Theme, { grid: string; axis: string; ok: string; bar: string; ref: string; label: string; tipBg: string; tipBorder: string; tipText: string }> = {
+  light: { grid: "#E3E6F2", axis: "#5F6890", ok: "#0E8A57", bar: "#FFD449", ref: "#CF3E2C", label: "#171F3D", tipBg: "#FFFFFF", tipBorder: "#E3E6F2", tipText: "#171F3D" },
+  dark: { grid: "#2A3156", axis: "#929AC0", ok: "#45D695", bar: "#FFD44D", ref: "#FF8B77", label: "#EDF0FC", tipBg: "#1F2643", tipBorder: "#2A3156", tipText: "#EDF0FC" },
+};
 
 /* ================================================================
    UI — composants
    ================================================================ */
 const Card = ({ children, className = "", style = {} }) => (
-  <div className={`rounded-2xl p-5 ${className}`} style={{ background: P.blanc, border: `1px solid ${P.ligne}`, ...style }}>{children}</div>
+  <div className={`cb-card ${className}`} style={style}>{children}</div>
 );
 const Tag = ({ children, tone = "encre" }) => {
-  const map = { encre: [P.encre, "#EDEDF3"], menthe: [P.menthe, P.mentheSoft], corail: [P.corail, P.corailSoft], fluo: [P.encre, P.fluoSoft] };
-  const [c, bg] = map[tone];
-  return <span className="text-xs font-semibold px-2 py-1 rounded-md" style={{ color: c, background: bg }}>{children}</span>;
+  const map = { encre: "cb-tag-ink", menthe: "cb-tag-mint", corail: "cb-tag-coral", fluo: "cb-tag-accent" };
+  return <span className={`cb-tag ${map[tone]}`}>{children}</span>;
 };
 const Btn = ({ children, onClick, variant = "primary", disabled = false, className = "" }:
   { children: React.ReactNode; onClick?: () => void; variant?: "primary" | "fluo" | "ghost" | "danger"; disabled?: boolean; className?: string }) => {
-  const styles = {
-    primary: { background: P.encre, color: "#fff" },
-    fluo: { background: P.fluo, color: P.encre },
-    ghost: { background: "transparent", color: P.encre, border: `1.5px solid ${P.ligne}` },
-    danger: { background: P.corailSoft, color: P.corail },
-  };
+  const map = { primary: "cb-btn-primary", fluo: "cb-btn-accent", ghost: "cb-btn-ghost", danger: "cb-btn-danger" };
   return (
-    <button onClick={onClick} disabled={disabled}
-      className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-transform active:scale-95 disabled:opacity-40 ${className}`}
-      style={styles[variant]}>{children}</button>
+    <button onClick={onClick} disabled={disabled} className={`cb-btn ${map[variant]} ${className}`}>{children}</button>
   );
 };
 const Field = ({ label, children }) => (
   <label className="block mb-4">
-    <span className="block text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: P.gris }}>{label}</span>
+    <span className="block text-xs font-bold uppercase tracking-wide mb-1.5" style={{ color: "var(--muted)" }}>{label}</span>
     {children}
   </label>
 );
 const Select = ({ value, onChange, options, placeholder }:
   { value?: string; onChange: (v: string) => void; options: string[]; placeholder?: string }) => (
   <select value={value || ""} onChange={(e) => onChange(e.target.value)}
-    className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none"
-    style={{ border: `1.5px solid ${P.ligne}`, background: P.blanc, color: value ? P.encre : P.gris }}>
+    className="cb-input" style={{ color: value ? undefined : "var(--muted)" }}>
     <option value="" disabled>{placeholder || "Choisir…"}</option>
     {options.map((o) => <option key={o} value={o}>{o}</option>)}
   </select>
+);
+const Progress = ({ value, color = "var(--accent)", track }: { value: number; color?: string; track?: string }) => (
+  <div className="cb-bar" style={track ? { background: track } : undefined}>
+    <span style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: color }} />
+  </div>
+);
+const Logo = ({ size = 36 }: { size?: number }) => (
+  <div className="rounded-xl flex items-center justify-center shrink-0"
+    style={{ width: size, height: size, background: "var(--hero)", boxShadow: "var(--shadow)" }}>
+    <GraduationCap size={size * 0.52} color="#FFD449" aria-hidden />
+  </div>
 );
 
 /* ---------- Onboarding : création de profil ---------- */
@@ -112,30 +100,33 @@ function Onboarding({ onDone, onCancel, canCancel }) {
   const canNext = [f.prenom.trim(), f.academie, g ? f.spe1 && f.spe2 && f.spe1 !== f.spe2 : f.serie, true][step];
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: P.papier }}>
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-lg cb-fade">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: P.encre }}><GraduationCap size={20} color={P.fluo} /></div>
+        <div className="flex items-center gap-3 mb-6">
+          <Logo size={44} />
           <div>
             <div className="cb-display font-extrabold text-lg leading-none">Coach Bac IA</div>
-            <div className="text-xs" style={{ color: P.gris }}>Nouveau profil élève</div>
+            <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>Nouveau profil élève</div>
           </div>
-          {canCancel && <button onClick={onCancel} className="ml-auto p-2"><X size={18} color={P.gris} /></button>}
+          {canCancel && (
+            <button onClick={onCancel} className="ml-auto p-2 rounded-lg" aria-label="Annuler la création de profil">
+              <X size={18} color="var(--muted)" />
+            </button>
+          )}
         </div>
-        <div className="flex gap-1.5 mb-5">
+        <div className="flex gap-1.5 mb-5" role="list" aria-label="Étapes">
           {steps.map((s, i) => (
-            <div key={s} className="flex-1">
-              <div className="h-1.5 rounded-full" style={{ background: i <= step ? P.fluo : P.ligne }} />
-              <div className="text-[10px] mt-1 font-semibold" style={{ color: i === step ? P.encre : P.gris }}>{s}</div>
+            <div key={s} className="flex-1" role="listitem" aria-current={i === step ? "step" : undefined}>
+              <div className="h-1.5 rounded-full transition-colors" style={{ background: i <= step ? "var(--accent)" : "var(--border)" }} />
+              <div className="text-[10px] mt-1 font-semibold" style={{ color: i === step ? "var(--text)" : "var(--muted)" }}>{s}</div>
             </div>
           ))}
         </div>
-        <Card>
+        <Card className="cb-pop">
           {step === 0 && (<>
             <h2 className="cb-display font-bold text-xl mb-4">Qui prépare <span className="cb-hl">le bac</span> ?</h2>
             <Field label="Prénom de l'élève">
-              <input value={f.prenom} onChange={(e) => set("prenom", e.target.value)} placeholder="Ex. Diyiah"
-                className="w-full px-3 py-2.5 rounded-xl text-sm font-medium outline-none" style={{ border: `1.5px solid ${P.ligne}` }} />
+              <input value={f.prenom} onChange={(e) => set("prenom", e.target.value)} placeholder="Ex. Diyiah" className="cb-input" />
             </Field>
           </>)}
           {step === 1 && (<>
@@ -145,9 +136,8 @@ function Onboarding({ onDone, onCancel, canCancel }) {
             <Field label="Statut du candidat">
               <div className="grid grid-cols-2 gap-2">
                 {[["scolaire", "Candidat scolaire", "Inscrit dans un lycée"], ["individuel", "Candidat individuel", "Candidat libre / CNED"]].map(([id, t, d]) => (
-                  <button key={id} onClick={() => set("statut", id)} className="text-left p-3 rounded-xl"
-                    style={{ border: `2px solid ${f.statut === id ? P.encre : P.ligne}`, background: f.statut === id ? P.fluoSoft : P.blanc }}>
-                    <div className="font-bold text-sm">{t}</div><div className="text-xs" style={{ color: P.gris }}>{d}</div>
+                  <button key={id} onClick={() => set("statut", id)} className="cb-option" aria-pressed={f.statut === id}>
+                    <div className="font-bold text-sm">{t}</div><div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{d}</div>
                   </button>
                 ))}
               </div>
@@ -158,8 +148,7 @@ function Onboarding({ onDone, onCancel, canCancel }) {
             <Field label="Voie">
               <div className="grid grid-cols-2 gap-2">
                 {[["generale", "Générale"], ["techno", "Technologique"]].map(([id, t]) => (
-                  <button key={id} onClick={() => set("voie", id)} className="p-3 rounded-xl font-bold text-sm"
-                    style={{ border: `2px solid ${f.voie === id ? P.encre : P.ligne}`, background: f.voie === id ? P.fluoSoft : P.blanc }}>{t}</button>
+                  <button key={id} onClick={() => set("voie", id)} className="cb-option text-center font-bold text-sm" aria-pressed={f.voie === id}>{t}</button>
                 ))}
               </div>
             </Field>
@@ -169,7 +158,7 @@ function Onboarding({ onDone, onCancel, canCancel }) {
               <Field label="Spécialité abandonnée en 1re (coef 8)"><Select value={f.spe3} onChange={(v) => set("spe3", v)} options={SPES_GENERALE.filter((s) => s !== f.spe1 && s !== f.spe2)} /></Field>
             </>) : (<>
               <Field label="Série technologique"><Select value={f.serie} onChange={(v) => { set("serie", v); const s = SERIES_TECHNO[v]; setF((p) => ({ ...p, serie: v, spe1: s.spes[0], spe2: s.spes[1], spe3: s.spe1ere })); }} options={Object.keys(SERIES_TECHNO)} /></Field>
-              {f.serie && <div className="text-xs p-3 rounded-xl mb-3" style={{ background: P.fluoSoft }}>Spécialités {f.serie} : {SERIES_TECHNO[f.serie].spes.join(" · ")}</div>}
+              {f.serie && <div className="text-xs p-3 rounded-xl mb-3 cb-tag-accent" style={{ display: "block" }}>Spécialités {f.serie} : {SERIES_TECHNO[f.serie].spes.join(" · ")}</div>}
             </>)}
             <div className="grid grid-cols-2 gap-3">
               <Field label="LVA"><Select value={f.lva} onChange={(v) => set("lva", v)} options={["Anglais", "Espagnol", "Allemand", "Portugais", "Italien", "Créole", "Autre"]} /></Field>
@@ -181,23 +170,23 @@ function Onboarding({ onDone, onCancel, canCancel }) {
             <Field label="Je vise…">
               <div className="grid grid-cols-2 gap-2">
                 {OBJECTIFS.map((o) => (
-                  <button key={o.id} onClick={() => set("objectif", o.id)} className="p-3 rounded-xl text-left"
-                    style={{ border: `2px solid ${f.objectif === o.id ? P.encre : P.ligne}`, background: f.objectif === o.id ? P.fluoSoft : P.blanc }}>
-                    <div className="font-bold text-sm">{o.label}</div><div className="text-xs" style={{ color: P.gris }}>≥ {o.seuil}/20</div>
+                  <button key={o.id} onClick={() => set("objectif", o.id)} className="cb-option" aria-pressed={f.objectif === o.id}>
+                    <div className="font-bold text-sm">{o.label}</div><div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>≥ {o.seuil}/20</div>
                   </button>
                 ))}
               </div>
             </Field>
             <Field label="Heures de révision disponibles par semaine">
-              <input type="range" min="2" max="20" value={f.heuresSemaine} onChange={(e) => set("heuresSemaine", Number(e.target.value))} className="w-full" />
-              <div className="text-center font-bold cb-display text-lg">{f.heuresSemaine} h / semaine</div>
+              <input type="range" min="2" max="20" value={f.heuresSemaine} onChange={(e) => set("heuresSemaine", Number(e.target.value))}
+                aria-valuetext={`${f.heuresSemaine} heures par semaine`} />
+              <div className="text-center font-bold cb-display text-lg mt-2">{f.heuresSemaine} h / semaine</div>
             </Field>
           </>)}
-          <div className="flex justify-between mt-4">
-            <Btn variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}><ChevronLeft size={16} className="inline -mt-0.5" /> Retour</Btn>
+          <div className="flex justify-between mt-5">
+            <Btn variant="ghost" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}><ChevronLeft size={16} aria-hidden /> Retour</Btn>
             {step < 3
-              ? <Btn variant="fluo" onClick={() => setStep((s) => s + 1)} disabled={!canNext}>Continuer <ChevronRight size={16} className="inline -mt-0.5" /></Btn>
-              : <Btn variant="fluo" onClick={() => onDone({ ...f, id: Date.now().toString(36), notes: {}, rectorat: {}, quizHistory: [] })}>Créer le profil <Check size={16} className="inline -mt-0.5" /></Btn>}
+              ? <Btn variant="fluo" onClick={() => setStep((s) => s + 1)} disabled={!canNext}>Continuer <ChevronRight size={16} aria-hidden /></Btn>
+              : <Btn variant="fluo" onClick={() => onDone({ ...f, id: Date.now().toString(36), notes: {}, rectorat: {}, quizHistory: [] })}>Créer le profil <Check size={16} aria-hidden /></Btn>}
           </div>
         </Card>
       </div>
@@ -209,45 +198,57 @@ function Onboarding({ onDone, onCancel, canCancel }) {
 function Dashboard({ p, res, go }) {
   const m = res.mention;
   const prog = Math.round((res.coefDone / res.coefTotal) * 100);
+  const tiles = [
+    { icon: Target, color: "var(--success)", soft: "var(--success-soft)", value: `${res.target}/20`, label: `Objectif (${mention(res.target)?.short})` },
+    { icon: Flame, color: "var(--danger)", soft: "var(--danger-soft)", value: res.ptsManquants, label: "Points à aller chercher" },
+    { icon: Award, color: "var(--on-accent)", soft: "var(--accent-soft)", value: res.totalProjete ?? "—", suffix: "/2000", label: "Total projeté" },
+    { icon: Clock, color: "var(--text-2)", soft: "var(--surface-2)", value: `${p.heuresSemaine} h`, label: "Révisions / semaine" },
+  ];
   return (
     <div className="space-y-4 cb-fade">
-      <Card style={{ background: P.encre, border: "none" }}>
+      <section className="cb-hero" aria-label="Moyenne générale projetée">
         <div className="flex flex-wrap items-end gap-6">
           <div>
-            <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: P.fluo }}>Moyenne générale projetée</div>
-            <div className="cb-display font-black text-6xl leading-none text-white">
-              {res.moyenne != null ? res.moyenne.toFixed(2) : "—"}<span className="text-2xl font-bold" style={{ color: P.gris }}>/20</span>
+            <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "var(--accent)" }}>Moyenne générale projetée</div>
+            <div className="cb-display font-extrabold text-6xl leading-none">
+              {res.moyenne != null ? res.moyenne.toFixed(2) : "—"}<span className="text-2xl font-bold" style={{ color: "var(--hero-muted)" }}>/20</span>
             </div>
           </div>
           <div className="flex-1 min-w-40">
-            {m && <div className="inline-block px-3 py-1.5 rounded-lg font-bold text-sm mb-2" style={{ background: P.fluo, color: P.encre }}>{m.label}</div>}
-            <div className="text-xs text-white/70">{res.pointsAcquis} points acquis · {res.coefDone}/{res.coefTotal} coefficients renseignés</div>
-            <div className="h-2 rounded-full mt-2" style={{ background: "#ffffff22" }}>
-              <div className="h-2 rounded-full" style={{ width: `${prog}%`, background: P.fluo }} />
-            </div>
+            {m && <div className="inline-block px-3 py-1.5 rounded-lg font-bold text-sm mb-2" style={{ background: "var(--accent)", color: "var(--on-accent)" }}>{m.label}</div>}
+            <div className="text-xs" style={{ color: "var(--hero-muted)" }}>{res.pointsAcquis} points acquis · {res.coefDone}/{res.coefTotal} coefficients renseignés</div>
+            <div className="mt-2"><Progress value={prog} track="var(--track)" /></div>
           </div>
         </div>
-      </Card>
+      </section>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><Target size={18} color={P.menthe} /><div className="cb-display font-extrabold text-2xl mt-1">{res.target}/20</div><div className="text-xs" style={{ color: P.gris }}>Objectif ({mention(res.target)?.short})</div></Card>
-        <Card><Flame size={18} color={P.corail} /><div className="cb-display font-extrabold text-2xl mt-1">{res.ptsManquants}</div><div className="text-xs" style={{ color: P.gris }}>Points à aller chercher</div></Card>
-        <Card><Award size={18} color={P.encre} /><div className="cb-display font-extrabold text-2xl mt-1">{res.totalProjete ?? "—"}<span className="text-sm" style={{ color: P.gris }}>/2000</span></div><div className="text-xs" style={{ color: P.gris }}>Total projeté</div></Card>
-        <Card><Clock size={18} color={P.encre} /><div className="cb-display font-extrabold text-2xl mt-1">{p.heuresSemaine} h</div><div className="text-xs" style={{ color: P.gris }}>Révisions / semaine</div></Card>
+        {tiles.map((t) => {
+          const Icon = t.icon;
+          return (
+            <Card key={t.label}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: t.soft }}>
+                <Icon size={17} color={t.color} aria-hidden />
+              </div>
+              <div className="cb-display font-extrabold text-2xl leading-tight">{t.value}{t.suffix && <span className="text-sm font-bold" style={{ color: "var(--muted)" }}>{t.suffix}</span>}</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>{t.label}</div>
+            </Card>
+          );
+        })}
       </div>
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <div className="flex items-center justify-between mb-3">
             <h3 className="cb-display font-bold">Prochaines actions</h3>
-            <button onClick={() => go("coach")} className="text-xs font-bold" style={{ color: P.encre }}>Coach IA →</button>
+            <button onClick={() => go("coach")} className="text-xs font-bold rounded-md px-1" style={{ color: "var(--text)" }}>Coach IA →</button>
           </div>
           {res.moyenne == null
-            ? <p className="text-sm" style={{ color: P.gris }}>Saisis tes premières notes dans l'onglet <b>Notes</b> : le coach analysera immédiatement tes points forts et tes priorités.</p>
+            ? <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>Saisis tes premières notes dans l'onglet <b>Notes</b> : le coach analysera immédiatement tes points forts et tes priorités.</p>
             : <CoachTeaser p={p} res={res} />}
         </Card>
         <Card>
           <div className="flex items-center justify-between mb-3">
             <h3 className="cb-display font-bold">Suivi Rectorat</h3>
-            <button onClick={() => go("rectorat")} className="text-xs font-bold" style={{ color: P.encre }}>Tout voir →</button>
+            <button onClick={() => go("rectorat")} className="text-xs font-bold rounded-md px-1" style={{ color: "var(--text)" }}>Tout voir →</button>
           </div>
           <RectoratTeaser p={p} />
         </Card>
@@ -257,13 +258,13 @@ function Dashboard({ p, res, go }) {
 }
 function CoachTeaser({ p, res }) {
   const a = coachAnalysis(p, res);
-  if (a.weak.length === 0) return <p className="text-sm" style={{ color: P.menthe }}>Toutes tes matières notées sont au-dessus de ton objectif. Consolide et vise la mention supérieure !</p>;
+  if (a.weak.length === 0) return <p className="text-sm font-medium" style={{ color: "var(--success)" }}>Toutes tes matières notées sont au-dessus de ton objectif. Consolide et vise la mention supérieure !</p>;
   return (
     <ul className="space-y-2">
       {a.weak.slice(0, 3).map((w) => (
-        <li key={w.id} className="flex items-center gap-2 text-sm">
-          <AlertTriangle size={15} color={P.corail} />
-          <span className="font-semibold flex-1">{w.nom}</span>
+        <li key={w.id} className="flex items-center gap-2 text-sm p-2 rounded-xl cb-row">
+          <AlertTriangle size={15} color="var(--danger)" className="shrink-0" aria-hidden />
+          <span className="font-semibold flex-1 truncate">{w.nom}</span>
           <Tag tone="corail">{w.note}/20 · coef {w.coef}</Tag>
         </li>
       ))}
@@ -277,10 +278,8 @@ function RectoratTeaser({ p }) {
   return (
     <div>
       <div className="text-sm mb-2"><b>{done}/{items.length}</b> démarches validées</div>
-      <div className="h-2 rounded-full mb-3" style={{ background: P.ligne }}>
-        <div className="h-2 rounded-full" style={{ width: `${(done / items.length) * 100}%`, background: P.menthe }} />
-      </div>
-      {next && <div className="text-sm p-3 rounded-xl" style={{ background: P.fluoSoft }}><b>À faire :</b> {next.titre} <span style={{ color: P.gris }}>· {next.date}</span></div>}
+      <div className="mb-3"><Progress value={(done / items.length) * 100} color="var(--success)" /></div>
+      {next && <div className="text-sm p-3 rounded-xl" style={{ background: "var(--accent-soft)" }}><b>À faire :</b> {next.titre} <span style={{ color: "var(--muted)" }}>· {next.date}</span></div>}
     </div>
   );
 }
@@ -295,32 +294,41 @@ function Notes({ p, res, update }) {
   return (
     <div className="space-y-4 cb-fade">
       {p.statut === "individuel" && (
-        <div className="text-sm p-3 rounded-xl flex gap-2 items-start" style={{ background: P.fluoSoft }}>
-          <FileText size={16} className="mt-0.5 shrink-0" />
+        <div className="text-sm p-3 rounded-xl flex gap-2 items-start" style={{ background: "var(--accent-soft)" }}>
+          <FileText size={16} className="mt-0.5 shrink-0" aria-hidden />
           <span>Candidat individuel : le contrôle continu est remplacé par des <b>évaluations ponctuelles</b> aux mêmes coefficients. Saisis tes notes ou tes estimations.</span>
         </div>
       )}
-      {groups.map(([type, label]) => (
-        <Card key={type}>
-          <h3 className="cb-display font-bold mb-1">{label}</h3>
-          <p className="text-xs mb-4" style={{ color: P.gris }}>Saisis tes moyennes ou notes de bacs blancs sur 20 — les calculs sont instantanés.</p>
-          <div className="space-y-2">
-            {res.rows.filter((r) => r.type === type).map((r) => (
-              <div key={r.id} className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: P.papier }}>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm truncate">{r.nom}</div>
-                  <div className="text-xs" style={{ color: P.gris }}>Coefficient {r.coef}</div>
+      {groups.map(([type, label]) => {
+        const rows = res.rows.filter((r) => r.type === type);
+        const filled = rows.filter((r) => r.note != null).length;
+        return (
+          <Card key={type}>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+              <h3 className="cb-display font-bold">{label}</h3>
+              <Tag tone={filled === rows.length ? "menthe" : "encre"}>{filled}/{rows.length} renseignées</Tag>
+            </div>
+            <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>Saisis tes moyennes ou notes de bacs blancs sur 20 — les calculs sont instantanés.</p>
+            <div className="space-y-2">
+              {rows.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 p-2.5 cb-row">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm truncate">{r.nom}</div>
+                    <div className="text-xs" style={{ color: "var(--muted)" }}>Coefficient {r.coef}</div>
+                  </div>
+                  {r.note != null && <Tag tone={r.note >= res.target ? "menthe" : "corail"}>{(r.note * r.coef).toFixed(0)} pts</Tag>}
+                  <input type="number" min="0" max="20" step="0.25" value={p.notes?.[r.id] ?? ""} placeholder="—"
+                    onChange={(e) => setNote(r.id, e.target.value)} aria-label={`Note ${r.nom} sur 20`}
+                    className="cb-input cb-note text-center font-bold" style={{
+                      width: "5rem",
+                      borderColor: r.note == null ? undefined : r.note >= res.target ? "var(--success)" : "var(--danger)",
+                    }} />
                 </div>
-                {r.note != null && <Tag tone={r.note >= res.target ? "menthe" : "corail"}>{(r.note * r.coef).toFixed(0)} pts</Tag>}
-                <input type="number" min="0" max="20" step="0.25" value={p.notes?.[r.id] ?? ""} placeholder="—"
-                  onChange={(e) => setNote(r.id, e.target.value)}
-                  className="cb-note w-20 px-2 py-2 rounded-lg text-center font-bold outline-none"
-                  style={{ border: `1.5px solid ${r.note == null ? P.ligne : r.note >= res.target ? P.menthe : P.corail}` }} />
-              </div>
-            ))}
-          </div>
-        </Card>
-      ))}
+              ))}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -328,33 +336,33 @@ function Notes({ p, res, update }) {
 /* ---------- Coach IA ---------- */
 function Coach({ p, res }) {
   const a = coachAnalysis(p, res);
-  if (res.moyenne == null) return <Card className="cb-fade"><Sparkles size={20} color={P.encre} /><p className="mt-2 text-sm">Le coach a besoin de tes notes pour travailler. Renseigne au moins une matière dans l'onglet <b>Notes</b>.</p></Card>;
+  if (res.moyenne == null) return <Card className="cb-fade"><Sparkles size={20} aria-hidden /><p className="mt-2 text-sm">Le coach a besoin de tes notes pour travailler. Renseigne au moins une matière dans l'onglet <b>Notes</b>.</p></Card>;
   return (
     <div className="space-y-4 cb-fade">
-      <Card style={{ background: P.encre, border: "none" }}>
-        <div className="flex items-center gap-2 mb-2"><Sparkles size={18} color={P.fluo} /><span className="cb-display font-bold text-white">Analyse du coach</span></div>
-        <p className="text-sm text-white/85">
-          {p.prenom}, ta moyenne projetée est de <b style={{ color: P.fluo }}>{res.moyenne.toFixed(2)}/20</b> ({res.mention.label.toLowerCase()}).
+      <section className="cb-hero" aria-label="Analyse du coach">
+        <div className="flex items-center gap-2 mb-2"><Sparkles size={18} color="var(--accent)" aria-hidden /><span className="cb-display font-bold">Analyse du coach</span></div>
+        <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,.88)" }}>
+          {p.prenom}, ta moyenne projetée est de <b style={{ color: "var(--accent)" }}>{res.moyenne.toFixed(2)}/20</b> ({res.mention.label.toLowerCase()}).
           {res.moyenne >= a.target
             ? ` Tu es au-dessus de ton objectif de ${a.target}/20 : la stratégie est de sécuriser tes acquis et de viser ${mention(Math.min(18, a.target + 2))?.short}.`
             : ` Il te manque ${res.ptsManquants} points pour atteindre ${a.target}/20. Bonne nouvelle : en concentrant tes ${p.heuresSemaine} h hebdomadaires sur ${Math.min(3, a.weak.length)} matières à fort coefficient, cet écart est rattrapable.`}
           {a.missing.length > 0 && ` ${a.missing.length} matière(s) restent sans note — renseigne-les pour affiner le plan.`}
         </p>
-      </Card>
+      </section>
       {a.advice.length > 0 && (
         <Card>
           <h3 className="cb-display font-bold mb-3">Plan de progression — <span className="cb-hl">priorités</span></h3>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {a.advice.map((w, i) => (
-              <div key={w.id} className="p-4 rounded-xl" style={{ background: P.papier }}>
+              <div key={w.id} className="p-4 cb-row">
                 <div className="flex items-center gap-2 flex-wrap mb-2">
-                  <span className="cb-display font-black text-lg" style={{ color: P.corail }}>P{i + 1}</span>
+                  <span className="cb-display font-extrabold text-lg" style={{ color: "var(--danger)" }}>P{i + 1}</span>
                   <span className="font-bold">{w.nom}</span>
                   <Tag tone="corail">{w.note}/20</Tag>
                   <Tag tone="fluo">+{w.gain.toFixed(0)} pts possibles</Tag>
                 </div>
                 <ul className="space-y-1">
-                  {w.tips.map((t, j) => <li key={j} className="text-sm flex gap-2"><Check size={14} color={P.menthe} className="mt-0.5 shrink-0" />{t}</li>)}
+                  {w.tips.map((t, j) => <li key={j} className="text-sm flex gap-2"><Check size={14} color="var(--success)" className="mt-0.5 shrink-0" aria-hidden />{t}</li>)}
                 </ul>
               </div>
             ))}
@@ -363,26 +371,24 @@ function Coach({ p, res }) {
       )}
       {a.strong.length > 0 && (
         <Card>
-          <h3 className="cb-display font-bold mb-2 flex items-center gap-2"><TrendingUp size={16} color={P.menthe} /> Points forts à sécuriser</h3>
+          <h3 className="cb-display font-bold mb-2 flex items-center gap-2"><TrendingUp size={16} color="var(--success)" aria-hidden /> Points forts à sécuriser</h3>
           <div className="flex flex-wrap gap-2">{a.strong.map((s) => <Tag key={s.id} tone="menthe">{s.nom} · {s.note}/20</Tag>)}</div>
         </Card>
       )}
       <Card>
         <h3 className="cb-display font-bold mb-2">Répartition conseillée de tes {p.heuresSemaine} h / semaine</h3>
-        {a.alloc.length === 0 ? <p className="text-sm" style={{ color: P.gris }}>Aucune matière sous l'objectif : répartis ton temps librement, avec un accent sur les spécialités (coef 16).</p> : (
-          <div className="space-y-2">
+        {a.alloc.length === 0 ? <p className="text-sm" style={{ color: "var(--muted)" }}>Aucune matière sous l'objectif : répartis ton temps librement, avec un accent sur les spécialités (coef 16).</p> : (
+          <div className="space-y-2.5">
             {a.alloc.map((x) => (
               <div key={x.id} className="flex items-center gap-3">
                 <div className="text-sm font-semibold flex-1 truncate">{x.nom}</div>
-                <div className="flex-1 h-3 rounded-full" style={{ background: P.ligne }}>
-                  <div className="h-3 rounded-full" style={{ width: `${(x.heures / p.heuresSemaine) * 100}%`, background: P.fluo }} />
-                </div>
+                <div className="flex-1"><Progress value={(x.heures / p.heuresSemaine) * 100} /></div>
                 <div className="text-sm font-bold w-10 text-right">{x.heures} h</div>
               </div>
             ))}
           </div>
         )}
-        <p className="text-xs mt-3" style={{ color: P.gris }}>Le planning détaillé jour par jour est généré dans l'onglet Planning.</p>
+        <p className="text-xs mt-3" style={{ color: "var(--muted)" }}>Le planning détaillé jour par jour est généré dans l'onglet Planning.</p>
       </Card>
     </div>
   );
@@ -396,14 +402,14 @@ function Planning({ p, res }) {
     <div className="space-y-4 cb-fade">
       <Card>
         <h3 className="cb-display font-bold mb-1">Semaine type de révision — <span className="cb-hl">{p.heuresSemaine} h</span></h3>
-        <p className="text-xs mb-4" style={{ color: P.gris }}>Généré automatiquement à partir de tes priorités (coefficient × écart à l'objectif). Sessions de 1 h, règle 40 min de travail / 10 min de pause.</p>
+        <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>Généré automatiquement à partir de tes priorités (coefficient × écart à l'objectif). Sessions de 1 h, règle 40 min de travail / 10 min de pause.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {week.map((d) => (
-            <div key={d.jour} className="p-3 rounded-xl" style={{ background: P.papier, minHeight: 90 }}>
-              <div className="text-xs font-black uppercase tracking-wide mb-2" style={{ color: P.gris }}>{d.jour}</div>
+            <div key={d.jour} className="p-3 cb-row" style={{ minHeight: 90 }}>
+              <div className="text-xs font-extrabold uppercase tracking-wide mb-2" style={{ color: "var(--muted)" }}>{d.jour}</div>
               {d.sessions.length === 0
-                ? <div className="text-xs italic" style={{ color: P.gris }}>Repos</div>
-                : d.sessions.map((s, i) => <div key={i} className="text-xs font-semibold px-2 py-1.5 rounded-lg mb-1" style={{ background: P.blanc, border: `1px solid ${P.ligne}` }}>{s}</div>)}
+                ? <div className="text-xs italic" style={{ color: "var(--muted)" }}>Repos</div>
+                : d.sessions.map((s, i) => <div key={i} className="text-xs font-semibold px-2 py-1.5 rounded-lg mb-1" style={{ background: "var(--surface)", border: "1px solid var(--border)" }}>{s}</div>)}
             </div>
           ))}
         </div>
@@ -411,9 +417,9 @@ function Planning({ p, res }) {
       <Card>
         <h3 className="cb-display font-bold mb-2">Les 3 règles du planning intelligent</h3>
         <ul className="text-sm space-y-1.5">
-          <li className="flex gap-2"><Check size={15} color={P.menthe} className="mt-0.5 shrink-0" /><b>Espacement :</b> revois chaque notion à J+1, J+3, J+7 (courbe de l'oubli).</li>
-          <li className="flex gap-2"><Check size={15} color={P.menthe} className="mt-0.5 shrink-0" /><b>Priorité coefficient :</b> 1 point gagné en spécialité vaut 16 points au bac.</li>
-          <li className="flex gap-2"><Check size={15} color={P.menthe} className="mt-0.5 shrink-0" /><b>Récupération :</b> dimanche soir sans écran, 7 h 30 de sommeil minimum en période d'examen.</li>
+          <li className="flex gap-2"><Check size={15} color="var(--success)" className="mt-0.5 shrink-0" aria-hidden /><span><b>Espacement :</b> revois chaque notion à J+1, J+3, J+7 (courbe de l'oubli).</span></li>
+          <li className="flex gap-2"><Check size={15} color="var(--success)" className="mt-0.5 shrink-0" aria-hidden /><span><b>Priorité coefficient :</b> 1 point gagné en spécialité vaut 16 points au bac.</span></li>
+          <li className="flex gap-2"><Check size={15} color="var(--success)" className="mt-0.5 shrink-0" aria-hidden /><span><b>Récupération :</b> dimanche soir sans écran, 7 h 30 de sommeil minimum en période d'examen.</span></li>
         </ul>
       </Card>
     </div>
@@ -447,18 +453,17 @@ function Quiz({ p, update }) {
     <div className="cb-fade">
       <Card>
         <h3 className="cb-display font-bold mb-1">Quiz express</h3>
-        <p className="text-xs mb-4" style={{ color: P.gris }}>Choisis une matière — les scores alimentent tes statistiques.</p>
+        <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>Choisis une matière — les scores alimentent tes statistiques.</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           {Object.keys(QUIZ).map((s) => (
-            <button key={s} onClick={() => setSubj(s)} className="p-3 rounded-xl text-left font-bold text-sm transition-transform active:scale-95"
-              style={{ border: `1.5px solid ${P.ligne}`, background: P.blanc }}>
-              {s}<div className="text-xs font-medium mt-0.5" style={{ color: P.gris }}>{QUIZ[s].length} questions</div>
+            <button key={s} onClick={() => setSubj(s)} className="cb-option font-bold text-sm">
+              {s}<div className="text-xs font-medium mt-0.5" style={{ color: "var(--muted)" }}>{QUIZ[s].length} questions</div>
             </button>
           ))}
         </div>
         {(p.quizHistory || []).length > 0 && (
           <div className="mt-5">
-            <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: P.gris }}>Derniers scores</div>
+            <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted)" }}>Derniers scores</div>
             <div className="flex flex-wrap gap-2">
               {p.quizHistory.slice(-6).reverse().map((h, k) => <Tag key={k} tone={h.score / h.total >= 0.6 ? "menthe" : "corail"}>{h.subj} · {h.score}/{h.total}</Tag>)}
             </div>
@@ -470,8 +475,8 @@ function Quiz({ p, update }) {
   if (done) {
     const pct = Math.round((score / qs.length) * 100);
     return (
-      <Card className="cb-fade text-center">
-        <div className="cb-display font-black text-5xl mb-1">{score}/{qs.length}</div>
+      <Card className="cb-pop text-center">
+        <div className="cb-display font-extrabold text-5xl mb-1">{score}/{qs.length}</div>
         <div className="mb-4"><Tag tone={pct >= 60 ? "menthe" : "corail"}>{pct >= 80 ? "Excellent !" : pct >= 60 ? "Bien joué" : "À retravailler"}</Tag></div>
         <div className="flex justify-center gap-2">
           <Btn variant="ghost" onClick={reset}>Autre matière</Btn>
@@ -483,25 +488,25 @@ function Quiz({ p, update }) {
   const q = qs[i];
   return (
     <Card className="cb-fade">
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center mb-2">
         <Tag tone="fluo">{subj}</Tag>
-        <span className="text-xs font-bold" style={{ color: P.gris }}>Question {i + 1}/{qs.length}</span>
+        <span className="text-xs font-bold" style={{ color: "var(--muted)" }}>Question {i + 1}/{qs.length}</span>
       </div>
+      <div className="mb-4"><Progress value={((i + (picked != null ? 1 : 0)) / qs.length) * 100} /></div>
       <h3 className="cb-display font-bold text-lg mb-4">{q.q}</h3>
       <div className="space-y-2">
         {q.opts.map((o, idx) => {
-          let border = P.ligne, bg = P.blanc;
+          const style: React.CSSProperties = {};
           if (picked != null) {
-            if (idx === q.a) { border = P.menthe; bg = P.mentheSoft; }
-            else if (idx === picked) { border = P.corail; bg = P.corailSoft; }
+            if (idx === q.a) { style.borderColor = "var(--success)"; style.background = "var(--success-soft)"; }
+            else if (idx === picked) { style.borderColor = "var(--danger)"; style.background = "var(--danger-soft)"; }
           }
           return (
-            <button key={idx} onClick={() => answer(idx)} className="w-full text-left p-3 rounded-xl font-semibold text-sm"
-              style={{ border: `2px solid ${border}`, background: bg }}>{o}</button>
+            <button key={idx} onClick={() => answer(idx)} className="cb-option w-full font-semibold text-sm" style={style}>{o}</button>
           );
         })}
       </div>
-      <button onClick={reset} className="text-xs font-bold mt-4" style={{ color: P.gris }}>← Quitter le quiz</button>
+      <button onClick={reset} className="text-xs font-bold mt-4 rounded-md" style={{ color: "var(--muted)" }}>← Quitter le quiz</button>
     </Card>
   );
 }
@@ -512,34 +517,34 @@ function Fiches() {
   return (
     <div className="space-y-3 cb-fade">
       {FICHES.map((f, i) => (
-        <Card key={i} className="cursor-pointer" style={{ borderLeft: `4px solid ${P.fluo}` }}>
-          <button className="w-full text-left" onClick={() => setOpen(open === i ? null : i)}>
+        <Card key={i} style={{ borderLeft: "4px solid var(--accent)" }}>
+          <button className="w-full text-left rounded-lg" onClick={() => setOpen(open === i ? null : i)} aria-expanded={open === i}>
             <div className="flex items-center gap-2 flex-wrap">
               <Tag tone="fluo">{f.matiere}</Tag>
               <span className="cb-display font-bold flex-1">{f.titre}</span>
-              <ChevronRight size={16} style={{ transform: open === i ? "rotate(90deg)" : "none", transition: "transform .2s" }} />
+              <ChevronRight size={16} aria-hidden style={{ transform: open === i ? "rotate(90deg)" : "none", transition: "transform .2s" }} />
             </div>
           </button>
-          {open === i && <p className="text-sm mt-3 leading-relaxed" style={{ color: P.encreSoft }}>{f.contenu}</p>}
+          {open === i && <p className="text-sm mt-3 leading-relaxed cb-fade" style={{ color: "var(--text-2)" }}>{f.contenu}</p>}
         </Card>
       ))}
       <Card>
         <h3 className="cb-display font-bold mb-1">Annales — <span className="cb-hl">structure des épreuves</span></h3>
-        <p className="text-xs mb-4" style={{ color: P.gris }}>Format officiel de chaque épreuve et le conseil qui fait la différence. Les sujets des sessions précédentes sont en libre accès sur les sites officiels (Eduscol, quandjepasselebac).</p>
+        <p className="text-xs mb-4" style={{ color: "var(--muted)" }}>Format officiel de chaque épreuve et le conseil qui fait la différence. Les sujets des sessions précédentes sont en libre accès sur les sites officiels (Eduscol, quandjepasselebac).</p>
         <div className="space-y-2">
           {ANNALES.map((a, i) => (
-            <div key={i} className="p-3 rounded-xl" style={{ background: P.papier }}>
+            <div key={i} className="p-3 cb-row">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm">{a.matiere}</span>
                 <Tag tone="encre">{a.duree}</Tag>
               </div>
-              <p className="text-xs mt-1.5" style={{ color: P.encreSoft }}>{a.format}</p>
-              <p className="text-xs mt-1.5 font-semibold flex gap-1.5"><Sparkles size={13} className="shrink-0 mt-0.5" color={P.corail} />{a.conseil}</p>
+              <p className="text-xs mt-1.5" style={{ color: "var(--text-2)" }}>{a.format}</p>
+              <p className="text-xs mt-1.5 font-semibold flex gap-1.5"><Sparkles size={13} className="shrink-0 mt-0.5" color="var(--danger)" aria-hidden />{a.conseil}</p>
             </div>
           ))}
         </div>
       </Card>
-      <p className="text-xs text-center" style={{ color: P.gris }}>Banque extensible — la synchronisation des sujets par académie arrive en phase 2 (base de données).</p>
+      <p className="text-xs text-center" style={{ color: "var(--muted)" }}>Banque extensible — la synchronisation des sujets par académie arrive en phase 2 (base de données).</p>
     </div>
   );
 }
@@ -556,38 +561,38 @@ function Annales({ p }: { p: StudentProfile }) {
     <div className="space-y-4 cb-fade">
       <Card>
         <h3 className="cb-display font-bold mb-1">S'entraîner sur les <span className="cb-hl">vrais sujets</span></h3>
-        <p className="text-xs mb-3" style={{ color: P.gris }}>
+        <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--muted)" }}>
           Choisis ton centre d'examen, puis une session : la recherche s'ouvre directement sur le sujet et son corrigé.
           Les sujets tombés en Antilles-Guyane sont ceux qui te ressemblent le plus si tu passes en Guyane.
         </p>
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap gap-2 mb-1" role="group" aria-label="Centre d'examen">
           {CENTRES.map((c) => (
-            <button key={c} onClick={() => setCentre(c)} className="px-3 py-1.5 rounded-xl text-xs font-bold"
-              style={{ background: centre === c ? P.encre : P.papier, color: centre === c ? P.fluo : P.encreSoft, border: `1.5px solid ${centre === c ? P.encre : P.ligne}` }}>
+            <button key={c} onClick={() => setCentre(c)} aria-pressed={centre === c}
+              className="cb-option text-xs font-bold" style={{ padding: "0.45rem 0.8rem" }}>
               {c}
             </button>
           ))}
         </div>
       </Card>
       {ANNALES.map((a, i) => (
-        <Card key={i} style={{ borderLeft: `4px solid ${P.fluo}` }}>
+        <Card key={i} style={{ borderLeft: "4px solid var(--accent)" }}>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="cb-display font-bold flex-1">{a.matiere}</span>
             <Tag tone="encre">{a.duree}</Tag>
           </div>
-          <p className="text-xs mt-1.5" style={{ color: P.encreSoft }}>{a.format}</p>
-          <p className="text-xs mt-1.5 font-semibold flex gap-1.5"><Sparkles size={13} className="shrink-0 mt-0.5" color={P.corail} />{a.conseil}</p>
+          <p className="text-xs mt-1.5" style={{ color: "var(--text-2)" }}>{a.format}</p>
+          <p className="text-xs mt-1.5 font-semibold flex gap-1.5"><Sparkles size={13} className="shrink-0 mt-0.5" color="var(--danger)" aria-hidden />{a.conseil}</p>
           <div className="flex flex-wrap gap-2 mt-3">
             {SESSIONS_ANNALES.map((s) => (
-              <button key={s} onClick={() => search(a.matiere, s)} className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                style={{ background: P.fluoSoft, border: `1px solid ${P.fluo}` }}>
-                Session {s} ↗
+              <button key={s} onClick={() => search(a.matiere, s)}
+                className="cb-btn cb-btn-ghost text-xs" style={{ padding: "0.45rem 0.8rem" }}>
+                Session {s} <ExternalLink size={12} aria-hidden />
               </button>
             ))}
           </div>
         </Card>
       ))}
-      <p className="text-xs text-center px-4" style={{ color: P.gris }}>
+      <p className="text-xs text-center px-4" style={{ color: "var(--muted)" }}>
         Les sujets officiels sont en libre accès. Méthode : un sujet complet par semaine, chronométré, corrigé le lendemain.
       </p>
     </div>
@@ -595,10 +600,12 @@ function Annales({ p }: { p: StudentProfile }) {
 }
 
 /* ---------- Stats ---------- */
-function Stats({ p, res }) {
+function Stats({ p, res, theme }: { p: StudentProfile; res; theme: Theme }) {
+  const c = CHART[theme];
   const data = res.rows.filter((r) => r.note != null).map((r) => ({ name: r.nom.length > 14 ? r.nom.slice(0, 13) + "…" : r.nom, note: r.note, coef: r.coef }));
   const radar = res.rows.filter((r) => r.note != null).slice(0, 8).map((r) => ({ subject: r.nom.split(" ")[0], note: r.note }));
-  if (data.length === 0) return <Card className="cb-fade"><BarChart3 size={20} /><p className="mt-2 text-sm">Les graphiques apparaîtront dès tes premières notes saisies.</p></Card>;
+  const tooltip = { background: c.tipBg, border: `1px solid ${c.tipBorder}`, borderRadius: 12, color: c.tipText, fontSize: 12 };
+  if (data.length === 0) return <Card className="cb-fade"><BarChart3 size={20} aria-hidden /><p className="mt-2 text-sm">Les graphiques apparaîtront dès tes premières notes saisies.</p></Card>;
   return (
     <div className="space-y-4 cb-fade">
       <Card>
@@ -606,13 +613,13 @@ function Stats({ p, res }) {
         <div style={{ height: Math.max(220, data.length * 42) }}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} layout="vertical" margin={{ left: 8, right: 24 }}>
-              <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v, n, pr) => [`${v}/20 · coef ${pr.payload.coef}`, "Note"]} />
-              <ReferenceLine x={res.target} stroke={P.corail} strokeDasharray="4 4" />
+              <XAxis type="number" domain={[0, 20]} tick={{ fontSize: 11, fill: c.axis }} stroke={c.grid} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11, fill: c.axis }} stroke={c.grid} />
+              <Tooltip formatter={(v, n, pr) => [`${v}/20 · coef ${pr.payload.coef}`, "Note"]} contentStyle={tooltip} cursor={{ fill: c.grid, opacity: 0.35 }} />
+              <ReferenceLine x={res.target} stroke={c.ref} strokeDasharray="4 4" />
               <Bar dataKey="note" radius={[0, 6, 6, 0]}>
-                {data.map((d, i) => <Cell key={i} fill={d.note >= res.target ? P.menthe : P.fluo} />)}
-                <LabelList dataKey="note" position="right" style={{ fontSize: 11, fontWeight: 700, fill: P.encre }} />
+                {data.map((d, i) => <Cell key={i} fill={d.note >= res.target ? c.ok : c.bar} />)}
+                <LabelList dataKey="note" position="right" style={{ fontSize: 11, fontWeight: 700, fill: c.label }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -624,9 +631,9 @@ function Stats({ p, res }) {
           <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={radar}>
-                <PolarGrid stroke={P.ligne} />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11 }} />
-                <Radar dataKey="note" stroke={P.encre} fill={P.fluo} fillOpacity={0.5} />
+                <PolarGrid stroke={c.grid} />
+                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fill: c.axis }} />
+                <Radar dataKey="note" stroke={c.label} fill={c.bar} fillOpacity={0.5} />
               </RadarChart>
             </ResponsiveContainer>
           </div>
@@ -644,14 +651,14 @@ function Rectorat({ p, update }) {
   const done = items.filter((i) => p.rectorat?.[i.id]).length;
   return (
     <div className="space-y-4 cb-fade">
-      <Card style={{ background: P.encre, border: "none" }}>
-        <div className="flex items-center gap-2 mb-1"><Building2 size={18} color={P.fluo} /><span className="cb-display font-bold text-white">Mode Rectorat — session {p.session}</span></div>
-        <p className="text-sm text-white/80">Académie de {p.academie} · candidat {p.statut === "scolaire" ? "scolaire" : "individuel"} · <b style={{ color: P.fluo }}>{done}/{items.length}</b> démarches validées</p>
-        <button onClick={() => downloadIcs(p)} className="mt-3 px-3 py-2 rounded-xl text-sm font-bold" style={{ background: P.fluo, color: P.encre }}>
-          📅 Ajouter les échéances à mon calendrier
+      <section className="cb-hero" aria-label="Suivi des démarches">
+        <div className="flex items-center gap-2 mb-1"><Building2 size={18} color="var(--accent)" aria-hidden /><span className="cb-display font-bold">Mode Rectorat — session {p.session}</span></div>
+        <p className="text-sm" style={{ color: "var(--hero-muted)" }}>Académie de {p.academie} · candidat {p.statut === "scolaire" ? "scolaire" : "individuel"} · <b style={{ color: "var(--accent)" }}>{done}/{items.length}</b> démarches validées</p>
+        <button onClick={() => downloadIcs(p)} className="cb-btn cb-btn-accent mt-3">
+          <CalendarPlus size={15} aria-hidden /> Ajouter les échéances à mon calendrier
         </button>
-        <p className="text-[11px] mt-1.5 text-white/60">Chaque échéance arrive dans ton téléphone avec un rappel 7 jours avant.</p>
-      </Card>
+        <p className="text-[11px] mt-2" style={{ color: "var(--hero-muted)" }}>Chaque échéance arrive dans ton téléphone avec un rappel 7 jours avant.</p>
+      </section>
       {cats.map((cat) => (
         <Card key={cat}>
           <h3 className="cb-display font-bold mb-3">{cat}</h3>
@@ -659,17 +666,18 @@ function Rectorat({ p, update }) {
             {items.filter((i) => i.cat === cat).map((it) => {
               const ok = !!p.rectorat?.[it.id];
               return (
-                <div key={it.id} className="flex gap-3 p-3 rounded-xl" style={{ background: ok ? P.mentheSoft : P.papier }}>
-                  <button onClick={() => toggle(it.id)} className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center mt-0.5"
-                    style={{ border: `2px solid ${ok ? P.menthe : P.gris}`, background: ok ? P.menthe : "transparent" }} aria-label={ok ? "Marquer à faire" : "Marquer fait"}>
-                    {ok && <Check size={14} color="#fff" />}
+                <div key={it.id} className="flex gap-3 p-3 rounded-xl transition-colors" style={{ background: ok ? "var(--success-soft)" : "var(--surface-2)" }}>
+                  <button onClick={() => toggle(it.id)} className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center mt-0.5 transition-colors"
+                    style={{ border: `2px solid ${ok ? "var(--success)" : "var(--muted)"}`, background: ok ? "var(--success)" : "transparent" }}
+                    role="checkbox" aria-checked={ok} aria-label={`${it.titre} — ${ok ? "fait" : "à faire"}`}>
+                    {ok && <Check size={14} color="#fff" aria-hidden />}
                   </button>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`font-semibold text-sm ${ok ? "line-through opacity-60" : ""}`}>{it.titre}</span>
                       <Tag tone="fluo">{it.date}</Tag>
                     </div>
-                    <p className="text-xs mt-1" style={{ color: P.encreSoft }}>{it.desc}</p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-2)" }}>{it.desc}</p>
                   </div>
                 </div>
               );
@@ -677,7 +685,7 @@ function Rectorat({ p, update }) {
           </div>
         </Card>
       ))}
-      <p className="text-xs text-center px-4" style={{ color: P.gris }}>Dates indicatives basées sur le calendrier national — vérifie toujours ta convocation et le site de l'académie de {p.academie}. Les notifications automatiques arrivent en phase 2.</p>
+      <p className="text-xs text-center px-4" style={{ color: "var(--muted)" }}>Dates indicatives basées sur le calendrier national — vérifie toujours ta convocation et le site de l'académie de {p.academie}. Les notifications automatiques arrivent en phase 2.</p>
     </div>
   );
 }
@@ -690,13 +698,13 @@ function AccountCard({ session }: { session: Session | null }) {
   if (!supabase) return null;
   if (session)
     return (
-      <Card style={{ borderColor: P.menthe, borderWidth: 2 }}>
+      <Card style={{ borderColor: "var(--success)", borderWidth: 2 }}>
         <div className="flex items-center gap-2 flex-wrap">
-          <Check size={16} color={P.menthe} />
+          <Check size={16} color="var(--success)" aria-hidden />
           <span className="font-bold text-sm flex-1">Connectée : {session.user.email}</span>
           <Btn variant="ghost" onClick={() => { void supabase!.auth.signOut(); }}>Se déconnecter</Btn>
         </div>
-        <p className="text-xs mt-2" style={{ color: P.gris }}>
+        <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
           Tes profils et notes sont sauvegardés dans le cloud et te suivent sur tous tes appareils.
         </p>
       </Card>
@@ -704,17 +712,17 @@ function AccountCard({ session }: { session: Session | null }) {
   return (
     <Card>
       <h3 className="cb-display font-bold mb-1">Sauvegarde <span className="cb-hl">multi-appareils</span></h3>
-      <p className="text-xs mb-3" style={{ color: P.gris }}>
+      <p className="text-xs mb-3 leading-relaxed" style={{ color: "var(--muted)" }}>
         Sans compte, tes données restent uniquement sur cet appareil. Avec un compte (gratuit), tu les retrouves partout — aucun mot de passe, un simple lien envoyé par email.
       </p>
       {sent ? (
-        <p className="text-sm font-semibold p-3 rounded-xl" style={{ background: P.mentheSoft, color: P.menthe }}>
+        <p className="text-sm font-semibold p-3 rounded-xl" style={{ background: "var(--success-soft)", color: "var(--success)" }}>
           Lien envoyé à {email} — ouvre l'email sur cet appareil et appuie sur le lien pour te connecter.
         </p>
       ) : (
         <div className="flex gap-2 flex-wrap">
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="ton.email@exemple.fr"
-            className="flex-1 min-w-40 px-3 py-2.5 rounded-xl text-sm outline-none" style={{ border: `1.5px solid ${P.ligne}` }} />
+            aria-label="Adresse email" className="cb-input flex-1 min-w-40" style={{ width: "auto" }} />
           <Btn variant="fluo" disabled={!email.includes("@")} onClick={() => {
             setErr("");
             void supabase!.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin + window.location.pathname } })
@@ -722,7 +730,7 @@ function AccountCard({ session }: { session: Session | null }) {
           }}>Recevoir mon lien</Btn>
         </div>
       )}
-      {err && <p className="text-xs mt-2 font-semibold" style={{ color: P.corail }}>{err}</p>}
+      {err && <p className="text-xs mt-2 font-semibold" style={{ color: "var(--danger)" }}>{err}</p>}
     </Card>
   );
 }
@@ -734,24 +742,24 @@ function Profiles({ state, setState, onAdd }) {
       {state.profiles.map((pr) => {
         const r = computeResults(pr);
         return (
-          <Card key={pr.id} className={pr.id === state.activeId ? "" : "opacity-80"} style={pr.id === state.activeId ? { borderColor: P.encre, borderWidth: 2 } : {}}>
+          <Card key={pr.id} className={pr.id === state.activeId ? "" : "opacity-80"} style={pr.id === state.activeId ? { borderColor: "var(--accent-strong)", borderWidth: 2 } : {}}>
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl flex items-center justify-center cb-display font-black text-lg shrink-0" style={{ background: P.fluo }}>{pr.prenom[0]?.toUpperCase()}</div>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center cb-display font-extrabold text-lg shrink-0" style={{ background: "var(--accent)", color: "var(--on-accent)" }}>{pr.prenom[0]?.toUpperCase()}</div>
               <div className="flex-1 min-w-0">
                 <div className="font-bold">{pr.prenom}</div>
-                <div className="text-xs truncate" style={{ color: P.gris }}>Bac {pr.session} · {pr.academie} · {pr.voie === "generale" ? "Générale" : pr.serie}</div>
+                <div className="text-xs truncate" style={{ color: "var(--muted)" }}>Bac {pr.session} · {pr.academie} · {pr.voie === "generale" ? "Générale" : pr.serie}</div>
               </div>
               {r.moyenne != null && <Tag tone="fluo">{r.moyenne.toFixed(1)}/20</Tag>}
               {pr.id !== state.activeId && <Btn variant="ghost" onClick={() => setState((s) => ({ ...s, activeId: pr.id }))}>Activer</Btn>}
               {state.profiles.length > 1 && (
                 <button onClick={() => { if (confirm(`Supprimer le profil de ${pr.prenom} ?`)) setState((s) => { const profiles = s.profiles.filter((x) => x.id !== pr.id); return { profiles, activeId: s.activeId === pr.id ? profiles[0].id : s.activeId }; }); }}
-                  className="p-2" aria-label="Supprimer"><Trash2 size={16} color={P.corail} /></button>
+                  className="p-2 rounded-lg" aria-label={`Supprimer le profil de ${pr.prenom}`}><Trash2 size={16} color="var(--danger)" aria-hidden /></button>
               )}
             </div>
           </Card>
         );
       })}
-      <Btn variant="fluo" onClick={onAdd} className="w-full"><Plus size={16} className="inline -mt-0.5" /> Ajouter un profil élève</Btn>
+      <Btn variant="fluo" onClick={onAdd} className="w-full"><Plus size={16} aria-hidden /> Ajouter un profil élève</Btn>
     </div>
   );
 }
@@ -783,43 +791,41 @@ function Chat({ p, res }) {
   return (
     <div className="cb-fade flex flex-col" style={{ minHeight: "60vh" }}>
       <Card className="flex-1 flex flex-col" style={{ minHeight: "55vh" }}>
-        <div className="flex items-center gap-2 mb-3 pb-3" style={{ borderBottom: `1px solid ${P.ligne}` }}>
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: P.encre }}><Sparkles size={15} color={P.fluo} /></div>
+        <div className="flex items-center gap-2.5 mb-3 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--hero)" }}><Sparkles size={16} color="#FFD449" aria-hidden /></div>
           <div>
             <div className="cb-display font-bold text-sm leading-none">Chat avec ton coach</div>
-            <div className="text-[11px]" style={{ color: P.gris }}>Il connaît tes notes, tes coefficients et ton objectif</div>
+            <div className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>Il connaît tes notes, tes coefficients et ton objectif</div>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto space-y-3 mb-3" style={{ maxHeight: "45vh" }}>
+        <div className="flex-1 overflow-y-auto space-y-3 mb-3" style={{ maxHeight: "45vh" }} aria-live="polite">
           {msgs.length === 0 && (
             <div>
-              <p className="text-sm mb-3" style={{ color: P.encreSoft }}>Bonjour {p.prenom} ! Pose-moi n'importe quelle question sur tes révisions, tes épreuves ou ta stratégie. Pour commencer :</p>
+              <p className="text-sm mb-3 leading-relaxed" style={{ color: "var(--text-2)" }}>Bonjour {p.prenom} ! Pose-moi n'importe quelle question sur tes révisions, tes épreuves ou ta stratégie. Pour commencer :</p>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((s) => (
-                  <button key={s} onClick={() => send(s)} className="text-xs font-semibold px-3 py-2 rounded-xl text-left"
-                    style={{ background: P.fluoSoft, border: `1px solid ${P.fluo}` }}>{s}</button>
+                  <button key={s} onClick={() => send(s)} className="cb-option text-xs font-semibold" style={{ padding: "0.5rem 0.8rem" }}>{s}</button>
                 ))}
               </div>
             </div>
           )}
           {msgs.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className="max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm whitespace-pre-wrap"
-                style={m.role === "user" ? { background: P.encre, color: "#fff", borderBottomRightRadius: 6 } : { background: P.papier, borderBottomLeftRadius: 6 }}>
+              <div className={`max-w-[85%] px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${m.role === "user" ? "cb-bubble-user" : "cb-bubble-coach"}`}>
                 {m.content}
               </div>
             </div>
           ))}
-          {busy && <div className="text-xs font-semibold" style={{ color: P.gris }}>Le coach réfléchit…</div>}
+          {busy && <div className="text-xs font-semibold cb-pulse" style={{ color: "var(--muted)" }}>Le coach réfléchit…</div>}
         </div>
         <div className="flex gap-2">
           <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Écris ta question…" disabled={busy}
-            className="flex-1 px-3.5 py-2.5 rounded-xl text-sm outline-none"
-            style={{ border: `1.5px solid ${P.ligne}`, background: P.blanc }} />
+            placeholder="Écris ta question…" disabled={busy} aria-label="Ta question au coach"
+            className="cb-input flex-1" style={{ width: "auto" }} />
           <button onClick={() => send()} disabled={busy || !input.trim()} aria-label="Envoyer"
-            className="w-11 h-11 rounded-xl flex items-center justify-center transition-transform active:scale-95 disabled:opacity-40"
-            style={{ background: P.fluo }}><Send size={17} color={P.encre} /></button>
+            className="cb-btn cb-btn-accent shrink-0" style={{ width: 44, height: 44, padding: 0 }}>
+            <Send size={17} aria-hidden />
+          </button>
         </div>
       </Card>
     </div>
@@ -843,6 +849,44 @@ const TABS = [
   { id: "profils", label: "Profils", icon: User },
 ];
 
+/* Sidebar (ordinateur) : rubriques groupées */
+const NAV_GROUPS = [
+  { label: "Pilotage", ids: ["dash", "notes", "stats"] },
+  { label: "Coaching", ids: ["coach", "chat", "planning"] },
+  { label: "Entraînement", ids: ["quiz", "fiches", "annales"] },
+  { label: "Organisation", ids: ["rectorat", "profils"] },
+];
+
+/* Navigation mobile : 4 accès directs + menu « Plus » */
+const MOBILE_PRIMARY = ["dash", "notes", "coach", "chat"];
+
+/* Titre et sous-titre affichés en tête de chaque page */
+const PAGE_META: Record<string, [string, string]> = {
+  dash: ["Tableau de bord", "Ta progression vers le bac, en un coup d'œil"],
+  notes: ["Notes", "Saisis tes moyennes — les calculs sont instantanés"],
+  coach: ["Coach IA", "Analyse personnalisée et priorités de travail"],
+  chat: ["Chat coach", "Pose tes questions, il connaît ton dossier"],
+  planning: ["Planning", "Ta semaine type de révision"],
+  quiz: ["Quiz", "Entraîne-toi en quelques minutes par jour"],
+  fiches: ["Fiches", "L'essentiel à retenir, matière par matière"],
+  annales: ["Annales", "Les vrais sujets des sessions précédentes"],
+  stats: ["Statistiques", "Visualise tes forces et tes marges de progression"],
+  rectorat: ["Rectorat", "Tes démarches officielles, sans stress"],
+  profils: ["Profils", "Comptes, synchronisation et élèves suivis"],
+};
+
+const tabById = (id: string) => TABS.find((t) => t.id === id)!;
+
+function ThemeToggle({ theme, onToggle, className = "" }: { theme: Theme; onToggle: () => void; className?: string }) {
+  const dark = theme === "dark";
+  return (
+    <button onClick={onToggle} className={`cb-btn cb-btn-ghost ${className}`} style={{ width: 40, height: 40, padding: 0 }}
+      aria-label={dark ? "Passer en mode clair" : "Passer en mode sombre"} title={dark ? "Mode clair" : "Mode sombre"}>
+      {dark ? <Sun size={17} aria-hidden /> : <Moon size={17} aria-hidden />}
+    </button>
+  );
+}
+
 export default function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [tab, setTab] = useState("dash");
@@ -850,6 +894,10 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [cloudReady, setCloudReady] = useState(false);
+  const [theme, setTheme] = useState<Theme>(getTheme);
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const toggleTheme = () => setTheme((t) => { const next = t === "dark" ? "light" : "dark"; applyTheme(next); return next; });
 
   useEffect(() => { store.load().then((s) => { setState(s); setLoaded(true); }); }, []);
 
@@ -881,14 +929,27 @@ export default function App() {
     if (session && cloudReady) void cloudSave(session.user.id, state);
   }, [state, loaded, session, cloudReady]);
 
+  // Fermeture du menu « Plus » au clavier (Échap)
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMoreOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [moreOpen]);
+
   const active = state?.profiles?.find((p) => p.id === state.activeId);
   const res = useMemo(() => (active ? computeResults(active) : null), [active]);
   const update = (p: StudentProfile) => setState((s) => (s ? { ...s, profiles: s.profiles.map((x) => (x.id === p.id ? p : x)) } : s));
 
-  if (!loaded) return <div className="min-h-screen flex items-center justify-center" style={{ background: P.papier }}><style>{CSS}</style><div className="cb-display font-bold cb-root">Chargement…</div></div>;
+  if (!loaded) return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3">
+      <div className="cb-pulse"><Logo size={52} /></div>
+      <div className="cb-display font-bold">Chargement…</div>
+    </div>
+  );
   if (!state || state.profiles.length === 0 || adding)
-    return (<><style>{CSS}</style><div className="cb-root"><Onboarding canCancel={!!state?.profiles?.length} onCancel={() => setAdding(false)}
-      onDone={(p) => { setState((s) => ({ profiles: [...(s?.profiles || []), p], activeId: p.id })); setAdding(false); setTab("notes"); }} /></div></>);
+    return <Onboarding canCancel={!!state?.profiles?.length} onCancel={() => setAdding(false)}
+      onDone={(p) => { setState((s) => ({ profiles: [...(s?.profiles || []), p], activeId: p.id })); setAdding(false); setTab("notes"); }} />;
 
   if (!active) {
     // activeId orphelin (profil supprimé hors app) : on répare vers le premier profil.
@@ -896,49 +957,131 @@ export default function App() {
     return null;
   }
 
+  const goTab = (id: string) => { setTab(id); setMoreOpen(false); };
+  const [title, subtitle] = PAGE_META[tab] || ["", ""];
+  const moreTabs = TABS.filter((t) => !MOBILE_PRIMARY.includes(t.id));
+  const moreActive = moreTabs.some((t) => t.id === tab);
+
   return (
-    <div className="cb-root min-h-screen" style={{ background: P.papier }}>
-      <style>{CSS}</style>
-      {/* Header */}
-      <header className="sticky top-0 z-20 px-4 py-3" style={{ background: P.papier, borderBottom: `1px solid ${P.ligne}` }}>
-        <div className="max-w-5xl mx-auto flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: P.encre }}><GraduationCap size={18} color={P.fluo} /></div>
+    <div className="min-h-screen">
+      <a href="#contenu" className="cb-skip">Aller au contenu</a>
+
+      {/* ---------- Sidebar (ordinateur) ---------- */}
+      <aside className="cb-sidebar hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 p-4 z-30" aria-label="Navigation principale">
+        <div className="flex items-center gap-3 px-2 py-2 mb-2">
+          <Logo size={40} />
           <div className="min-w-0">
             <div className="cb-display font-extrabold leading-none">Coach Bac IA</div>
-            <div className="text-[11px] truncate" style={{ color: P.gris }}>{active.prenom} · Bac {active.session} · {active.academie}</div>
+            <div className="text-[11px] truncate mt-1" style={{ color: "var(--muted)" }}>Bac {active.session} · {active.academie}</div>
           </div>
-          <button onClick={() => setTab("profils")} className="ml-auto w-9 h-9 rounded-xl cb-display font-black shrink-0" style={{ background: P.fluo }} aria-label="Profils">
-            {active.prenom[0]?.toUpperCase()}
-          </button>
         </div>
-        {/* Nav */}
-        <nav className="max-w-5xl mx-auto mt-3 flex gap-1 overflow-x-auto cb-scroll -mx-1 px-1">
-          {TABS.map((t) => {
-            const Icon = t.icon; const on = tab === t.id;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold whitespace-nowrap shrink-0"
-                style={{ background: on ? P.encre : "transparent", color: on ? P.fluo : P.encreSoft }}>
-                <Icon size={15} />{t.label}
-              </button>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto cb-scroll">
+          {NAV_GROUPS.map((gr) => (
+            <div key={gr.label}>
+              <div className="cb-navgroup">{gr.label}</div>
+              {gr.ids.map((id) => {
+                const t = tabById(id); const Icon = t.icon;
+                return (
+                  <button key={id} onClick={() => goTab(id)} className="cb-navlink" aria-current={tab === id ? "page" : undefined}>
+                    <Icon size={16} aria-hidden />{t.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
+        <div className="pt-3 mt-2 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)" }}>
+          <button onClick={() => goTab("profils")} className="flex items-center gap-2.5 flex-1 min-w-0 p-1.5 rounded-xl cb-navlink" style={{ padding: "0.4rem 0.5rem" }}>
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center cb-display font-extrabold shrink-0" style={{ background: "var(--accent)", color: "var(--on-accent)" }}>{active.prenom[0]?.toUpperCase()}</span>
+            <span className="min-w-0 text-left">
+              <span className="block font-bold text-sm truncate" style={{ color: "var(--text)" }}>{active.prenom}</span>
+              <span className="block text-[11px] truncate" style={{ color: "var(--muted)" }}>{session ? "Synchronisé" : "Sur cet appareil"}</span>
+            </span>
+          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
+      </aside>
+
+      {/* ---------- Header (mobile / tablette) ---------- */}
+      <header className="lg:hidden sticky top-0 z-30 px-4 py-3" style={{ background: "color-mix(in srgb, var(--bg) 88%, transparent)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid var(--border)" }}>
+        <div className="max-w-3xl mx-auto flex items-center gap-3">
+          <Logo size={38} />
+          <div className="min-w-0">
+            <div className="cb-display font-extrabold leading-none">Coach Bac IA</div>
+            <div className="text-[11px] truncate mt-1" style={{ color: "var(--muted)" }}>{active.prenom} · Bac {active.session} · {active.academie}</div>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <button onClick={() => goTab("profils")} className="w-10 h-10 rounded-xl cb-display font-extrabold shrink-0"
+              style={{ background: "var(--accent)", color: "var(--on-accent)" }} aria-label="Profils">
+              {active.prenom[0]?.toUpperCase()}
+            </button>
+          </div>
+        </div>
       </header>
-      {/* Main */}
-      <main className="max-w-5xl mx-auto p-4 pb-16">
-        {tab === "dash" && <Dashboard p={active} res={res} go={setTab} />}
-        {tab === "notes" && <Notes p={active} res={res} update={update} />}
-        {tab === "coach" && <Coach p={active} res={res} />}
-        {tab === "chat" && <Chat p={active} res={res} />}
-        {tab === "planning" && <Planning p={active} res={res} />}
-        {tab === "quiz" && <Quiz p={active} update={update} />}
-        {tab === "fiches" && <Fiches />}
-        {tab === "annales" && <Annales p={active} />}
-        {tab === "stats" && <Stats p={active} res={res} />}
-        {tab === "rectorat" && <Rectorat p={active} update={update} />}
-        {tab === "profils" && <div className="space-y-3"><AccountCard session={session} /><Profiles state={state} setState={setState} onAdd={() => setAdding(true)} /></div>}
+
+      {/* ---------- Contenu ---------- */}
+      <main id="contenu" className="lg:pl-64">
+        <div className="max-w-3xl mx-auto px-4 lg:px-8 pt-5 lg:pt-8 pb-28 lg:pb-12">
+          <div className="mb-5">
+            <h1 className="cb-display text-2xl font-extrabold">{title}</h1>
+            <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{subtitle}</p>
+          </div>
+          {tab === "dash" && <Dashboard p={active} res={res} go={goTab} />}
+          {tab === "notes" && <Notes p={active} res={res} update={update} />}
+          {tab === "coach" && <Coach p={active} res={res} />}
+          {tab === "chat" && <Chat p={active} res={res} />}
+          {tab === "planning" && <Planning p={active} res={res} />}
+          {tab === "quiz" && <Quiz p={active} update={update} />}
+          {tab === "fiches" && <Fiches />}
+          {tab === "annales" && <Annales p={active} />}
+          {tab === "stats" && <Stats p={active} res={res} theme={theme} />}
+          {tab === "rectorat" && <Rectorat p={active} update={update} />}
+          {tab === "profils" && <div className="space-y-3"><AccountCard session={session} /><Profiles state={state} setState={setState} onAdd={() => setAdding(true)} /></div>}
+        </div>
       </main>
+
+      {/* ---------- Menu « Plus » (mobile) ---------- */}
+      {moreOpen && (
+        <>
+          <div className="cb-sheet-backdrop lg:hidden" onClick={() => setMoreOpen(false)} aria-hidden />
+          <div className="cb-sheet lg:hidden" role="dialog" aria-modal="true" aria-label="Toutes les rubriques">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="cb-display font-bold">Toutes les rubriques</span>
+              <button onClick={() => setMoreOpen(false)} className="p-2 rounded-lg" aria-label="Fermer le menu">
+                <X size={18} color="var(--muted)" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {moreTabs.map((t) => {
+                const Icon = t.icon;
+                return (
+                  <button key={t.id} onClick={() => goTab(t.id)} className="cb-sheet-item" aria-current={tab === t.id ? "page" : undefined}>
+                    <Icon size={19} aria-hidden />{t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ---------- Barre de navigation (mobile) ---------- */}
+      <nav className="cb-bottomnav lg:hidden" aria-label="Navigation principale">
+        {MOBILE_PRIMARY.map((id) => {
+          const t = tabById(id); const Icon = t.icon;
+          const label = id === "dash" ? "Accueil" : id === "coach" ? "Coach" : id === "chat" ? "Chat" : t.label;
+          return (
+            <button key={id} onClick={() => goTab(id)} aria-current={tab === id && !moreOpen ? "page" : undefined}>
+              <span className="cb-bn-ico"><Icon size={18} aria-hidden /></span>{label}
+            </button>
+          );
+        })}
+        <button onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen}
+          aria-current={moreActive && !moreOpen ? "page" : undefined}>
+          <span className="cb-bn-ico"><MoreHorizontal size={18} aria-hidden /></span>Plus
+        </button>
+      </nav>
     </div>
   );
 }

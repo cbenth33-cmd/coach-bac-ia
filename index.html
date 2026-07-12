@@ -2,11 +2,24 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Coach Bac IA — accompagnement personnalisé au baccalauréat : calcul des points, coach IA, planning de révision, mode Rectorat." />
-    <meta name="theme-color" content="#232B4A" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#232B4A" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0D1120" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
     <title>Coach Bac IA</title>
+    <script>
+      // Applique le thème mémorisé avant le premier rendu (évite le flash).
+      try {
+        var t = localStorage.getItem("coachbac_theme");
+        if (t !== "light" && t !== "dark")
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
