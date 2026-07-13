@@ -52,16 +52,23 @@ export default function AgentLauncher({ agent, onClose }: AgentLauncherProps) {
             className="cc-panel w-full max-w-md overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Bandeau aux couleurs de l'agent */}
+            {/* Bandeau aux couleurs de l'agent, avec portrait */}
             <div
               className="relative flex items-center gap-4 p-5 text-white"
               style={{ background: `linear-gradient(135deg, ${agent.gradient[0]}, ${agent.gradient[1]})` }}
             >
+              <img
+                src={agent.portrait}
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-2xl border-2 border-white/50 object-cover shadow-lg"
+                style={{ objectPosition: "center 18%" }}
+              />
               <span
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/15"
+                className="absolute left-[4.6rem] top-[4.4rem] flex h-8 w-8 items-center justify-center rounded-xl border border-white/40 bg-white/20"
                 style={{ backdropFilter: "blur(8px)" }}
+                aria-hidden="true"
               >
-                <agent.icon size={26} strokeWidth={2.1} />
+                <agent.icon size={16} strokeWidth={2.2} />
               </span>
               <div className="min-w-0">
                 <p className="text-[0.68rem] font-extrabold uppercase tracking-[0.14em] opacity-80">{agent.domain}</p>

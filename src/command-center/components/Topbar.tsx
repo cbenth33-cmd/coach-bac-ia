@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Menu, Moon, Search, Sparkles, Sun } from "lucide-react";
 import { NOTIFICATIONS } from "../data/dashboard";
-import { useSearchShortcut, useTheme } from "../hooks";
+import { useClock, useSearchShortcut, useTheme } from "../hooks";
 
 /* ================================================================
    TOPBAR — recherche intelligente, notifications, bascule de thème.
@@ -19,6 +19,7 @@ export default function Topbar({ query, onQueryChange, onOpenMenu }: TopbarProps
   const [notifOpen, setNotifOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const now = useClock();
   useSearchShortcut(searchRef);
 
   const unread = NOTIFICATIONS.filter((n) => n.unread).length;
@@ -57,6 +58,16 @@ export default function Topbar({ query, onQueryChange, onOpenMenu }: TopbarProps
           aria-label="Recherche intelligente"
         />
         <span className="cc-kbd hidden sm:inline">⌘K</span>
+      </div>
+
+      {/* Horloge + date (compactes) */}
+      <div className="hidden text-right lg:block" role="timer" aria-label="Horloge">
+        <p className="cc-display text-[1.05rem] font-extrabold tabular-nums leading-none">
+          {now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+        </p>
+        <p className="mt-0.5 text-[0.66rem] font-bold capitalize" style={{ color: "var(--cc-mute)" }}>
+          {now.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}
+        </p>
       </div>
 
       {/* Notifications */}
@@ -140,11 +151,13 @@ export default function Topbar({ query, onQueryChange, onOpenMenu }: TopbarProps
         </AnimatePresence>
       </button>
 
-      {/* Action signature */}
-      <button type="button" className="cc-btn cc-btn-brand hidden sm:inline-flex">
-        <Sparkles size={16} />
-        Nouvelle session
-      </button>
+      {/* Action signature (masquée sur mobile via le conteneur : .cc-btn force display) */}
+      <div className="hidden sm:block">
+        <button type="button" className="cc-btn cc-btn-brand">
+          <Sparkles size={16} />
+          Nouvelle session
+        </button>
+      </div>
     </header>
   );
 }

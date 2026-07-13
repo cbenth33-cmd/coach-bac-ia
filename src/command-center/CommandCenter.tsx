@@ -1,10 +1,9 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { SearchX, Users } from "lucide-react";
+import { LayoutDashboard, SearchX, Users } from "lucide-react";
 import "./command-center.css";
 
 import { AGENTS, type Agent } from "./data/agents";
-import { useClock } from "./hooks";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
 import AgentCard from "./components/AgentCard";
@@ -18,8 +17,10 @@ import QuickActions from "./components/widgets/QuickActions";
 
 /* ================================================================
    CENTRE DE COMMANDEMENT IA — page d'accueil du système.
-   Coquille 3 colonnes (sidebar / contenu / rail de widgets),
-   entièrement responsive, thème clair/sombre, fond aurora animé.
+   Les agents IA sont l'élément principal : la grille de grandes
+   cartes portraits arrive immédiatement sous la barre supérieure.
+   La vue d'ensemble (stats, activité, météo, calendrier, projets)
+   est reléguée en zone secondaire, sous les agents.
    ================================================================ */
 
 /** Normalise pour la recherche : minuscules + sans accents. */
@@ -38,90 +39,55 @@ function filterAgents(query: string): Agent[] {
 /** Orchestration en cascade des cartes agents. */
 const gridVariants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.055, delayChildren: 0.15 } },
+  show: { transition: { staggerChildren: 0.05, delayChildren: 0.08 } },
 };
 
 export default function CommandCenter() {
   const [query, setQuery] = useState("");
   const [launched, setLaunched] = useState<Agent | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const now = useClock();
 
   const agents = useMemo(() => filterAgents(query), [query]);
-
-  const greeting = now.getHours() < 6 ? "Bonne nuit" : now.getHours() < 18 ? "Bonjour" : "Bonsoir";
-  const dateLabel = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  const timeLabel = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const online = AGENTS.filter((a) => a.status === "online").length;
 
   return (
     <div className="cc-root">
       <div className="cc-aurora" aria-hidden="true" />
 
       <div className="cc-shell">
-        {/* -------- colonne 1 : navigation -------- */}
+        {/* -------- navigation -------- */}
         <Sidebar />
 
-        {/* -------- colonne 2 : contenu principal -------- */}
+        {/* -------- contenu principal -------- */}
         <main className="flex min-w-0 flex-col gap-5">
           <Topbar query={query} onQueryChange={setQuery} onOpenMenu={() => setDrawerOpen(true)} />
 
-          {/* Héro : salutation + horloge temps réel */}
-          <motion.section
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 220, damping: 26 }}
-            className="cc-glass flex flex-wrap items-center justify-between gap-4 px-6 py-5"
-          >
-            <div>
-              <p className="cc-kicker mb-1">Centre de Commandement IA</p>
-              <h1 className="cc-display text-[clamp(1.35rem,3.2vw,1.9rem)] font-extrabold leading-tight">
-                {greeting}, Christopher —{" "}
-                <span
-                  style={{
-                    background: "linear-gradient(120deg, var(--cc-brand), var(--cc-brand-2))",
-                    WebkitBackgroundClip: "text",
-                    backgroundClip: "text",
-                    color: "transparent",
-                  }}
-                >
-                  votre équipe est prête.
-                </span>
-              </h1>
-              <p className="mt-1 text-[0.82rem] font-semibold capitalize" style={{ color: "var(--cc-mute)" }}>
-                {dateLabel}
-              </p>
-            </div>
-            <div className="text-right" role="timer" aria-label="Horloge">
-              <p className="cc-display text-[clamp(1.6rem,3.4vw,2.2rem)] font-extrabold tabular-nums leading-none">
-                {timeLabel}
-              </p>
-              <p className="mt-1 text-[0.72rem] font-bold" style={{ color: "var(--cc-mute)" }}>
-                Heure de Guyane
-              </p>
-            </div>
-          </motion.section>
-
-          {/* Statistiques */}
-          <StatTiles />
-
-          {/* Grille des agents */}
+          {/* ======== AGENTS IA — élément principal de la page ======== */}
           <section aria-label="Agents IA">
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
-              <div className="flex items-center gap-2">
-                <Users size={18} style={{ color: "var(--cc-brand)" }} />
-                <h2 className="cc-display text-[1.05rem] font-extrabold">Vos agents IA</h2>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 flex flex-wrap items-end justify-between gap-3 px-1"
+            >
+              <div>
+                <p className="cc-kicker mb-1">Centre de Commandement IA</p>
+                <h1 className="cc-display flex items-center gap-2.5 text-[clamp(1.4rem,3vw,1.85rem)] font-extrabold leading-tight">
+                  <Users size={26} style={{ color: "var(--cc-brand)" }} aria-hidden="true" />
+                  Vos agents IA
+                </h1>
               </div>
-              <span className="cc-kicker">
-                {agents.length} / {AGENTS.length} agent{agents.length > 1 ? "s" : ""}
+              <span className="cc-status" style={{ color: "var(--cc-online)", background: "var(--cc-online-soft)" }}>
+                <span className="cc-status-dot is-live" />
+                {online} agents en ligne · {agents.length} affiché{agents.length > 1 ? "s" : ""}
               </span>
-            </div>
+            </motion.div>
 
             {agents.length > 0 ? (
               <motion.div
                 variants={gridVariants}
                 initial="hidden"
                 animate="show"
-                className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3"
+                className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3"
               >
                 <AnimatePresence mode="popLayout">
                   {agents.map((agent) => (
@@ -144,17 +110,30 @@ export default function CommandCenter() {
             )}
           </section>
 
-          {/* Activité */}
-          <ActivityChart />
-        </main>
+          {/* ======== Vue d'ensemble — zone secondaire ======== */}
+          <section aria-label="Vue d'ensemble" className="mt-2 flex flex-col gap-5">
+            <div className="flex items-center gap-2.5 px-1">
+              <LayoutDashboard size={18} style={{ color: "var(--cc-brand)" }} aria-hidden="true" />
+              <h2 className="cc-display text-[1.05rem] font-extrabold">Vue d'ensemble</h2>
+            </div>
 
-        {/* -------- colonne 3 : rail de widgets -------- */}
-        <aside className="cc-rail flex min-w-0 flex-col gap-5">
-          <WeatherWidget />
-          <QuickActions />
-          <CalendarWidget />
-          <RecentProjects />
-        </aside>
+            <StatTiles />
+
+            <div className="grid gap-5 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <ActivityChart />
+              </div>
+              <div className="flex flex-col gap-5">
+                <WeatherWidget />
+                <QuickActions />
+              </div>
+              <div className="xl:col-span-2">
+                <RecentProjects />
+              </div>
+              <CalendarWidget />
+            </div>
+          </section>
+        </main>
       </div>
 
       {/* Tiroir de navigation mobile */}

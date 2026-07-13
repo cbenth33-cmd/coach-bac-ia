@@ -129,14 +129,14 @@
   }
 }
 
-/* ---------- coquille (sidebar / contenu / rail) ---------- */
+/* ---------- coquille (sidebar / contenu) ---------- */
 .cc-shell {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 336px;
+  grid-template-columns: 260px minmax(0, 1fr);
   gap: 1.25rem;
-  max-width: 1720px;
+  max-width: 1680px;
   margin: 0 auto;
   padding: 1.25rem;
   min-height: 100dvh;
@@ -144,12 +144,6 @@
 @media (max-width: 1279px) {
   .cc-shell {
     grid-template-columns: 84px minmax(0, 1fr);
-  }
-  .cc-rail {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.25rem;
   }
 }
 @media (max-width: 767px) {
@@ -347,7 +341,7 @@
 }
 .cc-agent-media {
   position: relative;
-  aspect-ratio: 5 / 4;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   background: linear-gradient(150deg, var(--agent-from, #333), var(--agent-to, #111));
 }
@@ -355,33 +349,37 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 22%;
+  object-position: center 18%;
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .cc-agent:hover .cc-agent-media img {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 .cc-agent-media::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(8, 10, 24, 0.55), transparent 55%);
+  background: linear-gradient(to top, rgba(8, 10, 24, 0.35), transparent 40%);
   pointer-events: none;
 }
-.cc-agent-fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
+.cc-agent-open {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.45rem;
+  align-self: flex-start;
+  padding: 0.55rem 1.05rem;
+  border-radius: 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--agent-accent, var(--cc-brand));
+  background: color-mix(in srgb, var(--agent-accent, var(--cc-brand)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--agent-accent, var(--cc-brand)) 28%, transparent);
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
-.cc-agent-fallback span {
-  font-family: "Sora", sans-serif;
-  font-size: 3rem;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.92);
-  letter-spacing: -0.02em;
-  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+.cc-agent:hover .cc-agent-open {
+  color: #fff;
+  background: linear-gradient(120deg, var(--agent-from, var(--cc-brand)), var(--agent-to, var(--cc-brand-2)));
+  box-shadow: 0 10px 24px -10px color-mix(in srgb, var(--agent-accent) 60%, transparent);
 }
 .cc-agent-ico {
   position: absolute;

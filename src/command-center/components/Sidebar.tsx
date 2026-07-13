@@ -92,7 +92,7 @@ export default function Sidebar({ asDrawer = false, onClose }: SidebarProps) {
           <div className="min-w-0">
             <p className="truncate text-[0.8rem] font-bold">Christopher</p>
             <p className="truncate text-[0.68rem] font-semibold" style={{ color: "var(--cc-mute)" }}>
-              Plan Commandeur
+              Espace personnel
             </p>
           </div>
         </div>
