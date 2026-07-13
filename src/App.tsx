@@ -971,7 +971,7 @@ function Chat({ p, res }) {
     <div className="cb-fade flex flex-col" style={{ minHeight: "60vh" }}>
       <Card className="flex-1 flex flex-col" style={{ minHeight: "55vh" }}>
         <div className="flex items-center gap-2.5 mb-3 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
-          <Ulysse size={40} mood={busy ? "reflechi" : "content"} className="shrink-0" />
+          <Ulysse size={40} mood={busy ? "reflechi" : "bienveillant"} className="shrink-0" />
           <div>
             <div className="cb-display font-bold text-sm leading-none">Coach Ulysse</div>
             <div className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>Ton binôme de révision — il connaît tes notes, tes coefficients et ton objectif</div>

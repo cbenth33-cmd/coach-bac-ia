@@ -11,7 +11,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: "auto",
-      workbox: { globPatterns: ["**/*.{js,css,html,png,svg,webmanifest}"] },
+      workbox: { globPatterns: ["**/*.{js,css,html,png,svg,webp,webmanifest}"] },
       manifest: {
         name: "Coach Bac IA",
         short_name: "CoachBac",
