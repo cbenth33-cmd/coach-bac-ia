@@ -22,6 +22,7 @@ import type { AppState } from "./lib/storage";
 import { askCoach, buildSystemPrompt } from "./lib/claude";
 import { supabase, cloudLoad, cloudSave } from "./lib/supabase";
 import { downloadIcs } from "./lib/ics";
+import Ulysse from "./ui/Ulysse";
 import type { Session } from "@supabase/supabase-js";
 import type { ChatMessage } from "./lib/claude";
 
@@ -152,7 +153,10 @@ function Onboarding({ onDone, onCancel, canCancel }) {
         </div>
         <Card className="cb-pop">
           {step === 0 && (<>
-            <h2 className="cb-display font-bold text-xl mb-4">Qui prépare <span className="cb-hl">le bac</span> ?</h2>
+            <div className="flex items-center gap-3 mb-4">
+              <Ulysse size={64} mood="content" title="Coach Ulysse te souhaite la bienvenue" />
+              <h2 className="cb-display font-bold text-xl">Qui prépare <span className="cb-hl">le bac</span> ?</h2>
+            </div>
             <Field label="Prénom de l'élève">
               <input value={f.prenom} onChange={(e) => set("prenom", e.target.value)} placeholder="Ex. Diyiah" className="cb-input" />
             </Field>
@@ -194,7 +198,10 @@ function Onboarding({ onDone, onCancel, canCancel }) {
             </div>
           </>)}
           {step === 3 && (<>
-            <h2 className="cb-display font-bold text-xl mb-4">Ton <span className="cb-hl">objectif</span></h2>
+            <div className="flex items-center gap-3 mb-4">
+              <Ulysse size={64} mood="encourageant" title="Coach Ulysse t'encourage" />
+              <h2 className="cb-display font-bold text-xl">Ton <span className="cb-hl">objectif</span></h2>
+            </div>
             <Field label="Je vise…">
               <div className="grid grid-cols-2 gap-2">
                 {OBJECTIFS.map((o) => (
@@ -254,9 +261,15 @@ function Dashboard({ p, res, go }) {
       {/* Progression générale */}
       <section className="cb-hero" aria-label="Moyenne générale projetée">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="text-sm font-bold" style={{ color: "var(--hero-muted)" }}>Salut {p.prenom} 👋</div>
-          <div className="cb-tag" style={{ background: "var(--track)", color: "#fff" }}>
-            <Flame size={13} color="var(--accent)" aria-hidden /> {streak > 0 ? `${streak} j de suite` : "Lance ta série !"}
+          <div>
+            <div className="text-sm font-bold" style={{ color: "var(--hero-muted)" }}>Salut {p.prenom}</div>
+            <div className="cb-tag mt-1.5" style={{ background: "var(--track)", color: "#fff" }}>
+              <Flame size={13} color="var(--accent)" aria-hidden /> {streak > 0 ? `${streak} j de suite` : "Lance ta série !"}
+            </div>
+          </div>
+          <div className="shrink-0 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(255,255,255,0.22), transparent)", padding: 8 }}>
+            <Ulysse size={72} mood={res.moyenne != null && res.moyenne >= res.target ? "fier" : streak > 0 ? "content" : "encourageant"}
+              title={`Coach Ulysse ${res.moyenne != null && res.moyenne >= res.target ? "est fier de toi" : "t'encourage"}`} />
           </div>
         </div>
         <div className="flex flex-wrap items-end gap-6">
@@ -362,7 +375,10 @@ function Dashboard({ p, res, go }) {
       {/* Badges */}
       <Card>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="cb-display font-bold">Badges</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="cb-display font-bold">Badges</h3>
+            {earned > 0 && <Ulysse size={30} mood="fier" title="Ulysse félicite" />}
+          </div>
           <Tag tone="fluo">{earned}/{badges.length}</Tag>
         </div>
         <div className="flex gap-2.5 overflow-x-auto cb-scroll -mx-1 px-1 pb-1" role="list" aria-label="Badges">
@@ -481,11 +497,19 @@ function Notes({ p, res, update }) {
 /* ---------- Coach IA ---------- */
 function Coach({ p, res }) {
   const a = coachAnalysis(p, res);
-  if (res.moyenne == null) return <Card className="cb-fade"><Sparkles size={20} aria-hidden /><p className="mt-2 text-sm">Le coach a besoin de tes notes pour travailler. Renseigne au moins une matière dans l'onglet <b>Notes</b>.</p></Card>;
+  if (res.moyenne == null) return (
+    <Card className="cb-fade flex items-center gap-4">
+      <Ulysse size={72} mood="reflechi" title="Ulysse attend tes notes" />
+      <p className="text-sm">Ulysse a besoin de tes notes pour travailler. Renseigne au moins une matière dans l'onglet <b>Notes</b>.</p>
+    </Card>
+  );
   return (
     <div className="space-y-4 cb-fade">
       <section className="cb-hero" aria-label="Analyse du coach">
-        <div className="flex items-center gap-2 mb-2"><Sparkles size={18} color="var(--accent)" aria-hidden /><span className="cb-display font-bold">Analyse du coach</span></div>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2"><Sparkles size={18} color="var(--accent)" aria-hidden /><span className="cb-display font-bold">Analyse de Coach Ulysse</span></div>
+          <Ulysse size={56} mood="concentre" />
+        </div>
         <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,.88)" }}>
           {p.prenom}, ta moyenne projetée est de <b style={{ color: "var(--accent)" }}>{res.moyenne.toFixed(2)}/20</b> ({res.mention.label.toLowerCase()}).
           {res.moyenne >= a.target
@@ -621,6 +645,7 @@ function Quiz({ p, update }) {
     const pct = Math.round((score / qs.length) * 100);
     return (
       <Card className="cb-pop text-center">
+        <div className="flex justify-center mb-2"><Ulysse size={88} mood={pct >= 60 ? "fier" : "encourageant"} title={pct >= 60 ? "Ulysse est fier de toi" : "Ulysse t'encourage"} /></div>
         <div className="cb-display font-extrabold text-5xl mb-1">{score}/{qs.length}</div>
         <div className="mb-4"><Tag tone={pct >= 60 ? "menthe" : "corail"}>{pct >= 80 ? "Excellent !" : pct >= 60 ? "Bien joué" : "À retravailler"}</Tag></div>
         <div className="flex justify-center gap-2">
@@ -651,7 +676,11 @@ function Quiz({ p, update }) {
           );
         })}
       </div>
-      <button onClick={reset} className="text-xs font-bold mt-4 rounded-md" style={{ color: "var(--muted)" }}>← Quitter le quiz</button>
+      <div className="flex justify-center mt-3" aria-live="polite">
+        <Ulysse size={64} mood={picked == null ? "concentre" : picked === q.a ? "fier" : "encourageant"}
+          title={picked == null ? "Ulysse se concentre" : picked === q.a ? "Bonne réponse !" : "Ulysse t'encourage"} />
+      </div>
+      <button onClick={reset} className="text-xs font-bold mt-2 rounded-md" style={{ color: "var(--muted)" }}>← Quitter le quiz</button>
     </Card>
   );
 }
@@ -750,7 +779,12 @@ function Stats({ p, res, theme }: { p: StudentProfile; res; theme: Theme }) {
   const data = res.rows.filter((r) => r.note != null).map((r) => ({ name: r.nom.length > 14 ? r.nom.slice(0, 13) + "…" : r.nom, note: r.note, coef: r.coef }));
   const radar = res.rows.filter((r) => r.note != null).slice(0, 8).map((r) => ({ subject: r.nom.split(" ")[0], note: r.note }));
   const tooltip = { background: c.tipBg, border: `1px solid ${c.tipBorder}`, borderRadius: 12, color: c.tipText, fontSize: 12 };
-  if (data.length === 0) return <Card className="cb-fade"><BarChart3 size={20} aria-hidden /><p className="mt-2 text-sm">Les graphiques apparaîtront dès tes premières notes saisies.</p></Card>;
+  if (data.length === 0) return (
+    <Card className="cb-fade flex items-center gap-4">
+      <Ulysse size={72} mood="reflechi" title="Ulysse attend tes notes" />
+      <p className="text-sm">Les graphiques apparaîtront dès tes premières notes saisies.</p>
+    </Card>
+  );
   return (
     <div className="space-y-4 cb-fade">
       <Card>
@@ -937,10 +971,10 @@ function Chat({ p, res }) {
     <div className="cb-fade flex flex-col" style={{ minHeight: "60vh" }}>
       <Card className="flex-1 flex flex-col" style={{ minHeight: "55vh" }}>
         <div className="flex items-center gap-2.5 mb-3 pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--hero)" }}><Sparkles size={16} color="#FFD449" aria-hidden /></div>
+          <Ulysse size={40} mood={busy ? "reflechi" : "content"} className="shrink-0" />
           <div>
-            <div className="cb-display font-bold text-sm leading-none">Chat avec ton coach</div>
-            <div className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>Il connaît tes notes, tes coefficients et ton objectif</div>
+            <div className="cb-display font-bold text-sm leading-none">Coach Ulysse</div>
+            <div className="text-[11px] mt-1" style={{ color: "var(--muted)" }}>Ton binôme de révision — il connaît tes notes, tes coefficients et ton objectif</div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto space-y-3 mb-3" style={{ maxHeight: "45vh" }} aria-live="polite">
@@ -955,13 +989,19 @@ function Chat({ p, res }) {
             </div>
           )}
           {msgs.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start items-end gap-2"}`}>
+              {m.role === "assistant" && <Ulysse size={30} mood={i === msgs.length - 1 && !busy ? "encourageant" : "content"} className="shrink-0" />}
               <div className={`max-w-[85%] px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed ${m.role === "user" ? "cb-bubble-user" : "cb-bubble-coach"}`}>
                 {m.content}
               </div>
             </div>
           ))}
-          {busy && <div className="text-xs font-semibold cb-pulse" style={{ color: "var(--muted)" }}>Le coach réfléchit…</div>}
+          {busy && (
+            <div className="flex items-center gap-2">
+              <Ulysse size={30} mood="reflechi" className="shrink-0" />
+              <span className="text-xs font-semibold cb-pulse" style={{ color: "var(--muted)" }}>Ulysse réfléchit…</span>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()}
@@ -1007,7 +1047,7 @@ const PAGE_META: Record<string, [string, string]> = {
   dash: ["Tableau de bord", "Ta progression vers le bac, en un coup d'œil"],
   notes: ["Notes", "Saisis tes moyennes — les calculs sont instantanés"],
   coach: ["Coach IA", "Analyse personnalisée et priorités de travail"],
-  chat: ["Chat coach", "Pose tes questions, il connaît ton dossier"],
+  chat: ["Chat coach", "Pose tes questions à Ulysse, il connaît ton dossier"],
   planning: ["Planning", "Ta semaine type de révision"],
   quiz: ["Quiz", "Entraîne-toi en quelques minutes par jour"],
   fiches: ["Fiches", "L'essentiel à retenir, matière par matière"],
@@ -1076,7 +1116,7 @@ export default function App() {
 
   if (!loaded) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3">
-      <div className="cb-pulse"><Logo size={52} /></div>
+      <div className="cb-pulse"><Ulysse size={92} mood="content" title="Coach Ulysse arrive" /></div>
       <div className="cb-display font-bold">Chargement…</div>
     </div>
   );
