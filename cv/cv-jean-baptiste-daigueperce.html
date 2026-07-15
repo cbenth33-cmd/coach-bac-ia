@@ -17,237 +17,161 @@
   }
 
   *{ box-sizing:border-box; margin:0; padding:0; }
-
   html{ -webkit-text-size-adjust:100%; }
 
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
     color:var(--ink);
     background:#EDF1F6;
-    line-height:1.5;
-    font-size:14px;
+    line-height:1.42;
+    font-size:12.5px;
     -webkit-font-smoothing:antialiased;
     text-rendering:optimizeLegibility;
   }
 
   .page{
     max-width:var(--maxw);
-    margin:32px auto;
+    margin:26px auto;
     background:var(--white);
-    padding:56px 60px;
+    padding:38px 46px 34px;
     box-shadow:0 12px 40px rgba(18,35,59,.12);
     border-radius:4px;
   }
 
   /* ---------- HEADER ---------- */
-  .header{ border-bottom:2px solid var(--navy); padding-bottom:22px; }
+  .header{ border-bottom:2px solid var(--navy); padding-bottom:16px; }
   .name{
-    font-size:33px;
+    font-size:29px;
     font-weight:800;
     letter-spacing:.01em;
     color:var(--navy);
-    line-height:1.1;
+    line-height:1.05;
   }
   .role{
-    margin-top:8px;
-    font-size:15px;
+    margin-top:6px;
+    font-size:13px;
     font-weight:600;
     color:var(--accent);
     letter-spacing:.06em;
     text-transform:uppercase;
   }
   .contact{
-    margin-top:16px;
+    margin-top:12px;
     display:flex;
     flex-wrap:wrap;
-    gap:6px 18px;
-    font-size:12.5px;
+    gap:4px 14px;
+    font-size:11.5px;
     color:var(--muted);
   }
   .contact a{ color:var(--muted); text-decoration:none; }
   .contact .sep{ color:var(--line); }
   .avail{
-    display:inline-flex;
-    align-items:center;
-    gap:7px;
-    color:var(--navy);
-    font-weight:600;
+    display:inline-flex; align-items:center; gap:6px;
+    color:var(--navy); font-weight:600;
   }
   .avail .dot{
-    width:7px; height:7px; border-radius:50%;
-    background:#22B07D;
-    display:inline-block;
+    width:6px; height:6px; border-radius:50%;
+    background:#22B07D; display:inline-block;
   }
 
   /* ---------- SECTION ---------- */
-  section{ margin-top:30px; }
+  section{ margin-top:18px; }
   .sec-title{
-    font-size:11.5px;
+    font-size:10.5px;
     font-weight:700;
-    letter-spacing:.16em;
+    letter-spacing:.15em;
     text-transform:uppercase;
     color:var(--navy);
-    margin-bottom:16px;
-    display:flex;
-    align-items:center;
-    gap:12px;
+    margin-bottom:11px;
+    display:flex; align-items:center; gap:11px;
   }
-  .sec-title::after{
-    content:"";
-    flex:1;
-    height:1px;
-    background:var(--line);
-  }
+  .sec-title::after{ content:""; flex:1; height:1px; background:var(--line); }
 
   /* ---------- PROFIL ---------- */
   .profile{
-    font-size:14.5px;
-    line-height:1.65;
+    font-size:12.5px;
+    line-height:1.5;
     color:var(--ink);
-    max-width:98%;
   }
   .profile strong{ color:var(--navy); font-weight:700; }
 
   /* ---------- STAT CARDS ---------- */
-  .stats{
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:14px;
-  }
+  .stats{ display:grid; grid-template-columns:repeat(6,1fr); gap:9px; }
   .stat{
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:10px;
-    padding:18px 18px;
+    border-radius:9px;
+    padding:12px 11px;
   }
   .stat .num{
-    font-size:24px;
-    font-weight:800;
-    color:var(--navy);
-    line-height:1;
-    letter-spacing:-.01em;
+    font-size:18px; font-weight:800; color:var(--navy);
+    line-height:1; letter-spacing:-.01em; white-space:nowrap;
   }
   .stat .num .accent{ color:var(--accent); }
-  .stat .lbl{
-    margin-top:8px;
-    font-size:12px;
-    color:var(--muted);
-    line-height:1.4;
-  }
+  .stat .lbl{ margin-top:6px; font-size:9.5px; color:var(--muted); line-height:1.32; }
 
   /* ---------- SKILLS ---------- */
-  .skills{
-    display:grid;
-    grid-template-columns:repeat(2,1fr);
-    gap:14px 22px;
-  }
-  .skill-cat h4{
-    font-size:12.5px;
-    font-weight:700;
-    color:var(--navy);
-    margin-bottom:9px;
-  }
+  .skills{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px 18px; }
+  .skill-cat h4{ font-size:11.5px; font-weight:700; color:var(--navy); margin-bottom:6px; }
   .skill-cat ul{ list-style:none; }
   .skill-cat li{
-    font-size:12.5px;
-    color:var(--ink);
-    padding:3px 0 3px 15px;
-    position:relative;
+    font-size:11px; color:var(--ink);
+    padding:2px 0 2px 12px; position:relative; line-height:1.35;
   }
   .skill-cat li::before{
-    content:"";
-    position:absolute;
-    left:0; top:10px;
-    width:5px; height:5px;
-    border-radius:50%;
-    background:var(--accent);
+    content:""; position:absolute; left:0; top:8px;
+    width:4px; height:4px; border-radius:50%; background:var(--accent);
   }
 
   /* ---------- EXPERIENCE ---------- */
-  .job{ margin-bottom:22px; }
+  .job{ margin-bottom:13px; }
   .job:last-child{ margin-bottom:0; }
-  .job-head{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    gap:16px;
-  }
-  .job-title{
-    font-size:14.5px;
-    font-weight:700;
-    color:var(--navy);
-  }
+  .job-head{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; }
+  .job-title{ font-size:12.5px; font-weight:700; color:var(--navy); }
   .job-title .company{ color:var(--accent); }
-  .job-date{
-    font-size:12px;
-    color:var(--muted);
-    white-space:nowrap;
-    font-weight:600;
-  }
-  .job ul{ list-style:none; margin-top:9px; }
+  .job-date{ font-size:10.5px; color:var(--muted); white-space:nowrap; font-weight:600; }
+  .job ul{ list-style:none; margin-top:5px; }
   .job li{
-    font-size:13px;
-    color:var(--ink);
-    line-height:1.5;
-    padding:3px 0 3px 16px;
-    position:relative;
+    font-size:11.5px; color:var(--ink); line-height:1.42;
+    padding:2px 0 2px 14px; position:relative;
   }
   .job li::before{
-    content:"";
-    position:absolute;
-    left:0; top:10px;
-    width:5px; height:1.5px;
-    background:var(--navy);
-    opacity:.55;
+    content:""; position:absolute; left:0; top:9px;
+    width:5px; height:1.5px; background:var(--navy); opacity:.55;
   }
   .job li strong{ color:var(--navy); font-weight:700; }
 
-  /* ---------- TWO-COL FOOTER ---------- */
-  .grid-2{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:34px;
-  }
-  .edu-item{ margin-bottom:12px; }
+  /* ---------- FOOTER GRID ---------- */
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:34px; }
+  .edu-item{ margin-bottom:9px; }
   .edu-item:last-child{ margin-bottom:0; }
-  .edu-item .d{ font-size:13.5px; font-weight:700; color:var(--navy); }
-  .edu-item .m{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .edu-item .d{ font-size:12px; font-weight:700; color:var(--navy); }
+  .edu-item .m{ font-size:10.5px; color:var(--muted); margin-top:1px; }
   .lang-row{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    font-size:13px;
-    padding:5px 0;
-    border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:11.5px; padding:4px 0; border-bottom:1px solid var(--line);
   }
   .lang-row:last-child{ border-bottom:none; }
   .lang-row .l{ font-weight:600; color:var(--navy); }
-  .lang-row .v{ color:var(--muted); font-size:12px; }
+  .lang-row .v{ color:var(--muted); font-size:10.5px; }
 
   /* ---------- PRINT ---------- */
   @page{ size:A4; margin:0; }
   @media print{
     body{ background:#fff; }
     .page{
-      margin:0 auto;
-      box-shadow:none;
-      border-radius:0;
-      max-width:none;
-      width:100%;
-      padding:40px 46px;
+      margin:0 auto; box-shadow:none; border-radius:0;
+      max-width:none; width:100%; padding:34px 42px;
     }
-    section{ break-inside:avoid; }
-    .job{ break-inside:avoid; }
-    .stat{ break-inside:avoid; }
   }
 
   /* ---------- RESPONSIVE ---------- */
   @media (max-width:640px){
-    .page{ padding:32px 22px; margin:0; border-radius:0; box-shadow:none; }
-    .name{ font-size:26px; }
+    .page{ padding:28px 20px; margin:0; border-radius:0; box-shadow:none; }
+    .name{ font-size:24px; }
     .stats{ grid-template-columns:repeat(2,1fr); }
-    .skills{ grid-template-columns:1fr; }
-    .grid-2{ grid-template-columns:1fr; gap:24px; }
+    .skills{ grid-template-columns:1fr 1fr; }
+    .grid-2{ grid-template-columns:1fr; gap:20px; }
     .job-head{ flex-direction:column; gap:2px; }
   }
 </style>
@@ -278,9 +202,9 @@
   <section>
     <div class="sec-title">Profil</div>
     <p class="profile">
-      Dix ans de terrain commercial m'ont appris une chose : <strong>la bonne question précède toujours la bonne solution.</strong>
-      J'applique cette méthode à l'adoption et à la fidélisation SaaS, appuyée par des outils IA que je conçois et pilote moi-même —
-      une maîtrise réelle, pas déclarée. Objectif : transformer chaque compte en usage durable et en croissance.
+      Dix ans de terrain commercial pour une conviction : <strong>la bonne question précède toujours la bonne solution.</strong>
+      J'applique cette méthode à l'adoption et à la fidélisation SaaS, appuyée par des outils IA que je conçois et pilote moi-même.
+      Objectif : transformer chaque compte en usage durable et en croissance.
     </p>
   </section>
 
@@ -288,30 +212,12 @@
   <section>
     <div class="sec-title">Chiffres clés</div>
     <div class="stats">
-      <div class="stat">
-        <div class="num">104</div>
-        <div class="lbl">comptes clients pilotés en portefeuille</div>
-      </div>
-      <div class="stat">
-        <div class="num">7 M€</div>
-        <div class="lbl">de chiffre d'affaires géré</div>
-      </div>
-      <div class="stat">
-        <div class="num">300 K€</div>
-        <div class="lbl">levés — SaaS lancé de zéro, 17 investisseurs</div>
-      </div>
-      <div class="stat">
-        <div class="num"><span class="accent">−70 %</span></div>
-        <div class="lbl">de temps de saisie (outil IA maison)</div>
-      </div>
-      <div class="stat">
-        <div class="num"><span class="accent">+40 %</span></div>
-        <div class="lbl">de productivité équipe gagnée</div>
-      </div>
-      <div class="stat">
-        <div class="num">4 ans</div>
-        <div class="lbl">de fidélisation sur le même portefeuille</div>
-      </div>
+      <div class="stat"><div class="num">104</div><div class="lbl">comptes pilotés</div></div>
+      <div class="stat"><div class="num">7 M€</div><div class="lbl">de CA géré</div></div>
+      <div class="stat"><div class="num">300 K€</div><div class="lbl">levés, 17 investisseurs</div></div>
+      <div class="stat"><div class="num"><span class="accent">−70 %</span></div><div class="lbl">temps de saisie (IA maison)</div></div>
+      <div class="stat"><div class="num"><span class="accent">+40 %</span></div><div class="lbl">productivité équipe</div></div>
+      <div class="stat"><div class="num">4 ans</div><div class="lbl">de fidélisation portefeuille</div></div>
     </div>
   </section>
 
@@ -322,28 +228,28 @@
       <div class="skill-cat">
         <h4>Customer Success</h4>
         <ul>
-          <li>Onboarding &amp; adoption produit</li>
+          <li>Onboarding &amp; adoption</li>
           <li>Réduction du churn</li>
-          <li>Renouvellement &amp; upsell de compte</li>
+          <li>Renouvellement &amp; upsell</li>
           <li>Health score &amp; KPIs d'usage</li>
         </ul>
       </div>
       <div class="skill-cat">
         <h4>Relation client</h4>
         <ul>
-          <li>Découverte du besoin &amp; questionnement structuré</li>
+          <li>Découverte du besoin</li>
           <li>Gestion de portefeuille</li>
-          <li>Détection des irritants &amp; plans d'action</li>
-          <li>Coordination produit / support / commercial</li>
+          <li>Détection des irritants</li>
+          <li>Plans d'action correctifs</li>
         </ul>
       </div>
       <div class="skill-cat">
         <h4>IA &amp; automatisation</h4>
         <ul>
-          <li>Agents IA autonomes en production</li>
+          <li>Agents IA autonomes</li>
           <li>Automatisation CRM &amp; reporting</li>
-          <li>Applications no-code déployées</li>
-          <li>Bases de connaissance structurées</li>
+          <li>Apps no-code en production</li>
+          <li>Bases de connaissance</li>
         </ul>
       </div>
       <div class="skill-cat">
@@ -368,10 +274,9 @@
         <div class="job-date">Depuis mai 2026</div>
       </div>
       <ul>
-        <li>Audit du besoin des dirigeants, puis conception de systèmes IA sur-mesure — de l'audit au déploiement (no-code + IA).</li>
-        <li><strong>3 applications produit lancées</strong> : apprentissage de l'anglais, prise de notes de réunion, formation à l'IA.</li>
+        <li>Audit du besoin des dirigeants puis conception de systèmes IA sur-mesure, de l'audit au déploiement.</li>
+        <li><strong>3 applications produit lancées</strong> : anglais, prise de notes de réunion, formation à l'IA.</li>
         <li>Site qinze.eu conçu, déployé et référencé (Google, Bing, Google Business Profile).</li>
-        <li>Prospection ciblée PME du BTP : besoin qualifié en amont de chaque rendez-vous.</li>
       </ul>
     </div>
 
@@ -382,8 +287,7 @@
       </div>
       <ul>
         <li>Portefeuille de <strong>104 points de vente</strong> multi-enseignes (Carrefour, Auchan, Leclerc, Système U, Intermarché) — <strong>7 M€ de CA</strong>.</li>
-        <li>Diagnostic par enseigne : visites, négociation des mises en avant, plans d'action sur-mesure.</li>
-        <li>Pilotage mensuel des KPIs (DN, PDL, sell-in/sell-out) pour anticiper les décrochages.</li>
+        <li>Diagnostic par enseigne et pilotage mensuel des KPIs (DN, PDL, sell-in/out) pour anticiper les décrochages.</li>
         <li>Outil de saisie IA conçu en interne et adopté par l'équipe : <strong>−70 % de temps, +40 % de productivité</strong>.</li>
       </ul>
     </div>
@@ -401,23 +305,22 @@
 
     <div class="job">
       <div class="job-head">
-        <div class="job-title">Chef de Secteur GMS — <span class="company">Virage Conseil</span></div>
-        <div class="job-date">2020 — 2021</div>
-      </div>
-      <ul>
-        <li>Gestion de portefeuille, détection des points de friction et propositions d'amélioration concrètes.</li>
-      </ul>
-    </div>
-
-    <div class="job">
-      <div class="job-head">
         <div class="job-title">Fondateur &amp; CEO — <span class="company">Zinqe</span>, SaaS Smart City</div>
         <div class="job-date">2016 — 2020</div>
       </div>
       <ul>
         <li>SaaS de données urbaines vendu aux collectivités : cycle complet découverte → démo → déploiement → fidélisation.</li>
-        <li>Management de 4 personnes, coordination produit / tech / clients.</li>
-        <li><strong>300 K€ levés</strong> (17 investisseurs) · incubation AWS, Sigfox, Nvidia.</li>
+        <li>Management de 4 personnes · <strong>300 K€ levés</strong> (17 investisseurs) · incubation AWS, Sigfox, Nvidia.</li>
+      </ul>
+    </div>
+
+    <div class="job">
+      <div class="job-head">
+        <div class="job-title">Chef de Secteur GMS — <span class="company">Virage Conseil</span></div>
+        <div class="job-date">2020 — 2021</div>
+      </div>
+      <ul>
+        <li>Gestion de portefeuille, détection des points de friction et propositions d'amélioration concrètes.</li>
       </ul>
     </div>
   </section>
